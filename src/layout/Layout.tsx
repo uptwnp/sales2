@@ -3,6 +3,7 @@ import { Outlet, useLocation } from 'react-router-dom';
 import Sidebar from '../components/common/Sidebar';
 import Header from '../components/common/Header';
 import LoadingBar from '../components/ui/LoadingBar';
+import OfflineIndicator from '../components/common/OfflineIndicator';
 import { useAppContext } from '../contexts/AppContext';
 
 const Layout: React.FC = () => {
@@ -33,6 +34,7 @@ const Layout: React.FC = () => {
   return (
     <div className="h-screen flex overflow-hidden bg-gray-100">
       {isLoading && <LoadingBar />}
+      <OfflineIndicator />
       
       {/* Sidebar overlay for mobile */}
       {isSidebarOpen && (

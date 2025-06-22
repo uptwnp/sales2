@@ -63,7 +63,7 @@ export const priorityOptions: Option[] = [
 
 // === Simple Uniform Options ===
 export const sourceOptions = [
-  'Instagram','Referral', 'Website', 'Website m3m', 'Website trident', 'Social Media', 'Cold Call', 'Olx', 'Facebook', 'Offline Meet', 'Property DB','Shoping','Other','Groups','Other'
+  'Instagram','Referral', 'Website', 'Website m3m', 'Website trident', 'Social Media', 'Cold Call', 'Olx', 'Facebook', 'Offline Meet', 'Property DB','Shoping','Other'
 ].map(createOption);
 
 export const mediumOptions = ['Post', 'Story', 'Reel', 'Direct', 'Other'].map(createOption);
@@ -147,20 +147,16 @@ export const tagOptions = {
 'Virat Nagar',
 'Shanti nagar',
     '8 Marla',
-'Vikash Nagar',
-    'Any Good Location in Panipat',
-    'Anywhere in Panipat',
-    'Punjabi Area',
-    'Posh Area'
+'Vikash Nagar'
   ].map(createOption),
 
   preferredSize: [
-    '50-70 Gaj', '80-100 Gaj', '100-150 Gaj', '150-200 Gaj', '200-250 Gaj', '250-300 Gaj', '300-400 Gaj', '400-500 Gaj', '500+ Gaj','1-5 Kille','5-10 Kille','10+ Kille'
+    '50-70 Gaj', '80-100 Gaj', '100-150 Gaj', '150-200 Gaj', '200-250 Gaj', '250-300 Gaj', '300-400 Gaj', '400-500 Gaj', '500+ Gaj'
   ].map(createOption),
 
   propertyType: [
-    'Plot Residential', 'Shop','House','Labour Quater', 'Colony', 'Flats', 'Agriculture Land', 'Free Zone Land', 'Godown', 'Factory',
-    'Big Commercial', 'Plot Industrial', 'Other'
+    'Plot Residential', 'Shop', 'Colony', 'Flats', 'Agriculture Land', 'Free Zone Land', 'Godown', 'Factory',
+    'Big Commercial', 'Plot Industrial', 'Other', 'Any'
   ].map(createOption),
 
   tags: commonTags,

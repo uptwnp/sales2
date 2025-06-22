@@ -4,6 +4,8 @@ import React, {
   useState,
   useEffect,
   ReactNode,
+  useCallback,
+  useRef,
 } from 'react';
 import { toast } from 'react-toastify';
 import { Lead, Todo, FilterOption } from '../types';
@@ -135,9 +137,27 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchTodos();
-  }, []);
+  // Request deduplication
+  const activeRequests = useRef<Map<string, Promise<any>>>(new Map());
+
+  // Create a unique key for request deduplication
+  const createRequestKey = (type: string, params: any) => {
+    return `${type}-${JSON.stringify(params)}`;
+  };
+
+  // Generic request handler with deduplication
+  const makeRequest = async <T,>(key: string, requestFn: () => Promise<T>): Promise<T> => {
+    if (activeRequests.current.has(key)) {
+      return activeRequests.current.get(key);
+    }
+
+    const promise = requestFn().finally(() => {
+      activeRequests.current.delete(key);
+    });
+
+    activeRequests.current.set(key, promise);
+    return promise;
+  };
 
   const transformApiLeadToLead = (apiLead: ApiLead): Lead => ({
     id: parseInt(apiLead.id),
@@ -169,7 +189,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
     updatedAt: apiLead.updated_at,
   });
 
-  const fetchTodos = async (params: {
+  const fetchTodos = useCallback(async (params: {
     type?: string;
     page?: number;
     perPage?: number;
@@ -182,70 +202,74 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
       sortOrder = 'desc'
     } = params;
 
-    setIsLoading(true);
+    const requestKey = createRequestKey('todos', params);
 
-    try {
-      const queryParams = new URLSearchParams({
-        action: 'get_tasks',
-        page: page.toString(),
-        per_page: perPage.toString(),
-        sort_order: sortOrder.toUpperCase()
-      });
+    return makeRequest(requestKey, async () => {
+      setIsLoading(true);
 
-      if (type) {
-        const apiType = getApiValue(todoTypeOptions, type);
-        queryParams.append('type', apiType);
-      }
-
-      const response = await fetch(`${API_BASE_URL}/?${queryParams}`);
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch tasks');
-      }
-
-      const data = await response.json();
-
-      if (data.status === 'success') {
-        const transformedTodos: Todo[] = data.data.map((task: ApiTask) => {
-          if (task.lead) {
-            const transformedLead = transformApiLeadToLead(task.lead);
-            setLeads(prevLeads => {
-              const existingLeadIndex = prevLeads.findIndex(l => l.id === transformedLead.id);
-              if (existingLeadIndex >= 0) {
-                const updatedLeads = [...prevLeads];
-                updatedLeads[existingLeadIndex] = transformedLead;
-                return updatedLeads;
-              }
-              return [...prevLeads, transformedLead];
-            });
-          }
-
-          return {
-            id: parseInt(task.id),
-            leadId: parseInt(task.lead_id),
-            type: getOptionByApiValue(todoTypeOptions, task.type)?.value || 'Other',
-            title: task.title,
-            description: task.description || '',
-            responseNote: task.response_note || '',
-            status: getOptionByApiValue(todoStatusOptions, task.status)?.value || 'Pending',
-            dateTime: task.timedate,
-            participants: task.participant ? [task.participant] : [],
-            createdAt: task.created_at,
-            updatedAt: task.updated_at,
-          };
+      try {
+        const queryParams = new URLSearchParams({
+          action: 'get_tasks',
+          page: page.toString(),
+          per_page: perPage.toString(),
+          sort_order: sortOrder.toUpperCase()
         });
 
-        setTodos(transformedTodos);
-      }
-    } catch (err) {
-      console.error('Error fetching tasks:', err);
-      toast.error('Failed to fetch tasks');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+        if (type) {
+          const apiType = getApiValue(todoTypeOptions, type);
+          queryParams.append('type', apiType);
+        }
 
-  const fetchLeads = async (
+        const response = await fetch(`${API_BASE_URL}/?${queryParams}`);
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch tasks');
+        }
+
+        const data = await response.json();
+
+        if (data.status === 'success') {
+          const transformedTodos: Todo[] = data.data.map((task: ApiTask) => {
+            if (task.lead) {
+              const transformedLead = transformApiLeadToLead(task.lead);
+              setLeads(prevLeads => {
+                const existingLeadIndex = prevLeads.findIndex(l => l.id === transformedLead.id);
+                if (existingLeadIndex >= 0) {
+                  const updatedLeads = [...prevLeads];
+                  updatedLeads[existingLeadIndex] = transformedLead;
+                  return updatedLeads;
+                }
+                return [...prevLeads, transformedLead];
+              });
+            }
+
+            return {
+              id: parseInt(task.id),
+              leadId: parseInt(task.lead_id),
+              type: getOptionByApiValue(todoTypeOptions, task.type)?.value || 'Other',
+              title: task.title,
+              description: task.description || '',
+              responseNote: task.response_note || '',
+              status: getOptionByApiValue(todoStatusOptions, task.status)?.value || 'Pending',
+              dateTime: task.timedate,
+              participants: task.participant ? [task.participant] : [],
+              createdAt: task.created_at,
+              updatedAt: task.updated_at,
+            };
+          });
+
+          setTodos(transformedTodos);
+        }
+      } catch (err) {
+        console.error('Error fetching tasks:', err);
+        toast.error('Failed to fetch tasks');
+      } finally {
+        setIsLoading(false);
+      }
+    });
+  }, []);
+
+  const fetchLeads = useCallback(async (
     params: {
       page?: number;
       perPage?: number;
@@ -264,95 +288,104 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
       currentFilters = leadFilters,
     } = params;
 
-    setIsLoading(true);
-    setError(null);
+    const requestKey = createRequestKey('leads', params);
 
-    try {
-      const queryParams = new URLSearchParams({
-        action: 'get_leads',
-        page: page.toString(),
-        per_page: perPage.toString(),
-        sort_field: sortField,
-        sort_order: sortOrder.toUpperCase(),
-      });
+    return makeRequest(requestKey, async () => {
+      setIsLoading(true);
+      setError(null);
 
-      if (search) {
-        queryParams.append('query', search);
-      }
+      try {
+        const queryParams = new URLSearchParams({
+          action: 'get_leads',
+          page: page.toString(),
+          per_page: perPage.toString(),
+          sort_field: sortField,
+          sort_order: sortOrder.toUpperCase(),
+        });
 
-      currentFilters.forEach((filter) => {
-        switch (filter.field) {
-          case 'stage':
-            queryParams.append('stage', getApiValue(stageOptions, filter.value as string));
-            break;
-
-          case 'priority':
-            queryParams.append('priority', getApiValue(priorityOptions, filter.value as string));
-            break;
-
-          case 'purchaseTimeline':
-            queryParams.append('when_buy', getApiValue(purchaseTimelineOptions, filter.value as string));
-            break;
-            
-          case 'intent':
-            queryParams.append('intent', getApiValue(intentOptions, filter.value as string));
-            break;
-
-          case 'source':
-            queryParams.append('source', getApiValue(sourceOptions, filter.value as string));
-            break;
-
-          case 'segment':
-            queryParams.append('segment', getApiValue(segmentOptions, filter.value as string));
-            break;
-
-          case 'assignedTo':
-            if (Array.isArray(filter.value)) {
-              queryParams.append('assigned_to', filter.value.join(','));
-            } else {
-              queryParams.append('assigned_to', filter.value.toString());
-            }
-            break;
-
-          case 'tags':
-            if (Array.isArray(filter.value)) {
-              queryParams.append('tags', filter.value.join(','));
-            } else {
-              queryParams.append('tags', filter.value.toString());
-            }
-            break;
-
-          case 'budget':
-            if (filter.operator === '>=') {
-              queryParams.append('budget_min', filter.value.toString());
-            } else if (filter.operator === '<=') {
-              queryParams.append('budget_max', filter.value.toString());
-            }
-            break;
+        if (search) {
+          queryParams.append('query', search);
         }
-      });
 
-      const response = await fetch(`${API_BASE_URL}/?${queryParams}`);
+        currentFilters.forEach((filter) => {
+          switch (filter.field) {
+            case 'stage':
+              queryParams.append('stage', getApiValue(stageOptions, filter.value as string));
+              break;
 
-      if (!response.ok) {
-        throw new Error('Failed to fetch leads');
+            case 'priority':
+              queryParams.append('priority', getApiValue(priorityOptions, filter.value as string));
+              break;
+
+            case 'purchaseTimeline':
+              queryParams.append('when_buy', getApiValue(purchaseTimelineOptions, filter.value as string));
+              break;
+              
+            case 'intent':
+              queryParams.append('intent', getApiValue(intentOptions, filter.value as string));
+              break;
+
+            case 'source':
+              queryParams.append('source', getApiValue(sourceOptions, filter.value as string));
+              break;
+
+            case 'segment':
+              queryParams.append('segment', getApiValue(segmentOptions, filter.value as string));
+              break;
+
+            case 'assignedTo':
+              if (Array.isArray(filter.value)) {
+                queryParams.append('assigned_to', filter.value.join(','));
+              } else {
+                queryParams.append('assigned_to', filter.value.toString());
+              }
+              break;
+
+            case 'tags':
+              if (Array.isArray(filter.value)) {
+                queryParams.append('tags', filter.value.join(','));
+              } else {
+                queryParams.append('tags', filter.value.toString());
+              }
+              break;
+
+            case 'budget':
+              if (filter.operator === '>=') {
+                queryParams.append('budget_min', filter.value.toString());
+              } else if (filter.operator === '<=') {
+                queryParams.append('budget_max', filter.value.toString());
+              }
+              break;
+          }
+        });
+
+        const response = await fetch(`${API_BASE_URL}/?${queryParams}`);
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch leads');
+        }
+
+        const data = await response.json();
+
+        if (data.status === 'success') {
+          const transformedLeads: Lead[] = data.data.map((item: ApiLead) => transformApiLeadToLead(item));
+          setLeads(transformedLeads);
+        } else {
+          throw new Error(data.message || 'Failed to fetch leads');
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'An error occurred');
+        console.error('Error fetching leads:', err);
+      } finally {
+        setIsLoading(false);
       }
+    });
+  }, [leadFilters]);
 
-      const data = await response.json();
-
-      if (data.status === 'success') {
-        const transformedLeads: Lead[] = data.data.map((item: ApiLead) => transformApiLeadToLead(item));
-        setLeads(transformedLeads);
-      } else {
-        throw new Error(data.message || 'Failed to fetch leads');
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
-      console.error('Error fetching leads:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  // Only fetch todos once on mount
+  useEffect(() => {
+    fetchTodos();
+  }, []);
 
   const updateContactAPI = async (lead: Lead) => {
     try {

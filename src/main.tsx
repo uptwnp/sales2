@@ -6,16 +6,24 @@ import './index.css';
 import { AppProvider } from './contexts/AppContext';
 import { registerSW } from 'virtual:pwa-register';
 
-// Add PWA reload prompt
+// Enhanced PWA registration with update handling
 const updateSW = registerSW({
   onNeedRefresh() {
-    if (confirm('New content available. Reload?')) {
-      updateSW(true);
-    }
+    // Dispatch custom event for update prompt
+    window.dispatchEvent(new CustomEvent('sw-update-available', {
+      detail: { updateSW }
+    }));
   },
   onOfflineReady() {
     console.log('App ready to work offline');
+    // You could show a toast notification here
   },
+  onRegistered(r) {
+    console.log('SW Registered: ' + r);
+  },
+  onRegisterError(error) {
+    console.log('SW registration error', error);
+  }
 });
 
 createRoot(document.getElementById('root')!).render(

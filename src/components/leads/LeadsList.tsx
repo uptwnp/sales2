@@ -31,6 +31,7 @@ const LeadsList: React.FC = () => {
 
   const leads = getFilteredLeads();
 
+  // Only fetch leads when component mounts or when critical params change
   useEffect(() => {
     fetchLeads({
       page: currentPage,
@@ -40,7 +41,41 @@ const LeadsList: React.FC = () => {
       search: searchQuery,
       currentFilters: leadFilters,
     });
-  }, [currentPage, sortField, sortDirection, searchQuery, leadFilters]);
+  }, []); // Empty dependency array - only run on mount
+
+  // Separate effect for when filters change
+  useEffect(() => {
+    if (leadFilters.length > 0) {
+      fetchLeads({
+        page: 1, // Reset to first page when filters change
+        perPage: 10,
+        sortField,
+        sortOrder: sortDirection,
+        search: searchQuery,
+        currentFilters: leadFilters,
+      });
+      updateState({ currentPage: 1 });
+    }
+  }, [leadFilters]);
+
+  // Debounced search effect
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (searchQuery) {
+        fetchLeads({
+          page: 1,
+          perPage: 10,
+          sortField,
+          sortOrder: sortDirection,
+          search: searchQuery,
+          currentFilters: leadFilters,
+        });
+        updateState({ currentPage: 1 });
+      }
+    }, 500); // 500ms debounce
+
+    return () => clearTimeout(timeoutId);
+  }, [searchQuery]);
 
   const handleSort = (field: SortField) => {
     const newDirection = sortField === field && sortDirection === 'asc' ? 'desc' : 'asc';
@@ -48,6 +83,15 @@ const LeadsList: React.FC = () => {
       sortField: field,
       sortDirection: newDirection,
       currentPage: 1
+    });
+    
+    fetchLeads({
+      page: 1,
+      perPage: 10,
+      sortField: field,
+      sortOrder: newDirection,
+      search: searchQuery,
+      currentFilters: leadFilters,
     });
   };
 
@@ -70,6 +114,18 @@ const LeadsList: React.FC = () => {
         updateState({ searchQuery: formattedNumber });
       }
     }
+  };
+
+  const handlePageChange = (newPage: number) => {
+    updateState({ currentPage: newPage });
+    fetchLeads({
+      page: newPage,
+      perPage: 10,
+      sortField,
+      sortOrder: sortDirection,
+      search: searchQuery,
+      currentFilters: leadFilters,
+    });
   };
 
   const propertyTypeLabel = (types: string[]) => {
@@ -301,14 +357,14 @@ const LeadsList: React.FC = () => {
               </div>
               <div className="flex space-x-1">
                 <button
-                  onClick={() => updateState({ currentPage: Math.max(1, currentPage - 1) })}
+                  onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
                   disabled={currentPage === 1 || isLoading}
                   className="btn btn-outline py-1 px-3 disabled:opacity-50"
                 >
                   Previous
                 </button>
                 <button
-                  onClick={() => updateState({ currentPage: currentPage + 1 })}
+                  onClick={() => handlePageChange(currentPage + 1)}
                   disabled={leads.length < 10 || isLoading}
                   className="btn btn-outline py-1 px-3 disabled:opacity-50"
                 >

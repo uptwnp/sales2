@@ -60,7 +60,7 @@ const TodosList: React.FC<TodosListProps> = ({
   const { state, updateState } = usePersistentState(stateKey);
   const { currentPage, searchQuery, activeTab = 'today' } = state;
 
-  // Fetch todos when component mounts or when defaultType changes
+  // Only fetch todos when component mounts or when defaultType changes
   useEffect(() => {
     fetchTodos({
       type: defaultType,
@@ -68,7 +68,20 @@ const TodosList: React.FC<TodosListProps> = ({
       perPage: ITEMS_PER_PAGE,
       sortOrder: 'desc',
     });
-  }, [defaultType, currentPage]);
+  }, []); // Empty dependency array - only run on mount
+
+  // Separate effect for when defaultType changes
+  useEffect(() => {
+    if (defaultType) {
+      fetchTodos({
+        type: defaultType,
+        page: 1,
+        perPage: ITEMS_PER_PAGE,
+        sortOrder: 'desc',
+      });
+      updateState({ currentPage: 1 });
+    }
+  }, [defaultType]);
 
   const allTodos = getFilteredTodos();
 
@@ -136,10 +149,13 @@ const TodosList: React.FC<TodosListProps> = ({
       ITEMS_PER_PAGE
   );
 
+  // Debounced search effect
   useEffect(() => {
-    updateState({
-      currentPage: 1,
-    });
+    const timeoutId = setTimeout(() => {
+      updateState({ currentPage: 1 });
+    }, 300);
+
+    return () => clearTimeout(timeoutId);
   }, [searchQuery, activeTab, todoFilters]);
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -154,6 +170,10 @@ const TodosList: React.FC<TodosListProps> = ({
       activeTab: tab,
       currentPage: 1,
     });
+  };
+
+  const handlePageChange = (newPage: number) => {
+    updateState({ currentPage: newPage });
   };
 
   const handleTodoClick = (todo: Todo) => {
@@ -417,20 +437,14 @@ const TodosList: React.FC<TodosListProps> = ({
               </div>
               <div className="flex space-x-1">
                 <button
-                  onClick={() =>
-                    updateState({ currentPage: Math.max(1, currentPage - 1) })
-                  }
+                  onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
                   disabled={currentPage === 1}
                   className="btn btn-outline py-1 px-3 disabled:opacity-50"
                 >
                   Previous
                 </button>
                 <button
-                  onClick={() =>
-                    updateState({
-                      currentPage: Math.min(totalPages, currentPage + 1),
-                    })
-                  }
+                  onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
                   disabled={currentPage === totalPages}
                   className="btn btn-outline py-1 px-3 disabled:opacity-50"
                 >

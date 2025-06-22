@@ -1,17 +1,8 @@
-import React, { useEffect } from 'react';
-import { useAppContext } from '../../contexts/AppContext';
+import React from 'react';
 import TodosList from './TodosList';
 
 const Activities: React.FC = () => {
-  const { fetchTodos } = useAppContext();
-
-  useEffect(() => {
-    // Fetch only activities
-    fetchTodos({
-      type: 'Activity'
-    });
-  }, []);
-
+  // Don't call fetchTodos here - let TodosList handle it
   return (
     <TodosList 
       defaultType="Activity"

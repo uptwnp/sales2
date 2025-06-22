@@ -10,37 +10,29 @@ import FollowUps from './components/todos/FollowUps';
 import Meetings from './components/todos/Meetings';
 import Activities from './components/todos/Activities';
 import Calendar from './components/calendar/Calendar';
-import PinLogin from './components/auth/PinLogin';
-import PrivateRoute from './components/auth/PrivateRoute';
+import PWAInstallPrompt from './components/common/PWAInstallPrompt';
+import PWAUpdatePrompt from './components/common/PWAUpdatePrompt';
 
 const App: React.FC = () => {
   return (
     <>
       <Routes>
-        <Route path="/login" element={<PinLogin />} />
-        <Route
-          path="/"
-          element={
-            <PrivateRoute>
-              <Layout />
-            </PrivateRoute>
-          }
-        >
-          <Route index element={<Navigate to="/leads\" replace />} />
+        <Route path="/" element={<Layout />}>
+          <Route index element={<Navigate to="/leads" replace />} />
           <Route path="leads" element={<LeadsList />} />
           <Route path="leads/:id" element={<LeadDetail />} />
           <Route path="tasks" element={<TodosList />} />
           <Route
             path="follow-ups"
-            element={<TodosList defaultType="Follow Up\" title="Follow Ups" />}
+            element={<TodosList defaultType="Follow Up" title="Follow Ups" />}
           />
           <Route
             path="meetings"
-            element={<TodosList defaultType="Meeting\" title="My Meetings" />}
+            element={<TodosList defaultType="Meeting" title="My Meetings" />}
           />
           <Route
             path="find-match"
-            element={<TodosList defaultType="Find Match\" title="Find Match" />}
+            element={<TodosList defaultType="Find Match" title="Find Match" />}
           />
           <Route
             path="to-schedule-visit"
@@ -53,9 +45,13 @@ const App: React.FC = () => {
           />
           <Route path="activities" element={<Activities />} />
           <Route path="calendar" element={<Calendar />} />
-          <Route path="*" element={<Navigate to="/leads\" replace />} />
+          <Route path="*" element={<Navigate to="/leads" replace />} />
         </Route>
       </Routes>
+      
+      <PWAInstallPrompt />
+      <PWAUpdatePrompt />
+      
       <ToastContainer
         position="top-right"
         autoClose={2000}
