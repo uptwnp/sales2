@@ -37,6 +37,8 @@ const commonTags: Option[] = [
   "Seller Also",
   "Must Remember",
   "Serious Buyer",
+  "Trident",
+  "Godrej",
   "Need Loan",
   "VIP",
   "Investor",
@@ -95,6 +97,7 @@ export const priorityOptions: Option[] = [
 export const sourceOptions = [
   "Instagram",
   "Referral",
+  "GMB",
   "Website",
   "Website m3m",
   "Website trident",
