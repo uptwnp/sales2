@@ -176,7 +176,7 @@ export const todoStatusOptions: Option[] = [
 
 export const segmentOptions: Option[] = [
   "Panipat",
-  "Panipat - Projects",
+  "Panipat Projects",
   "Panipat Investors",
   "Rohtak",
   "Sonipat",
