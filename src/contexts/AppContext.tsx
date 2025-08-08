@@ -448,7 +448,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
       };
 
       const response = await fetch(
-        `${CONTACT_API_URL}?source=sales&lead_id=${lead.id}`,
+        `${CONTACT_API_URL}?source=sales&id=${lead.id}`,
         {
           method: "POST",
           headers: {
