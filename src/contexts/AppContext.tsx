@@ -380,7 +380,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
         setIsLoading(false);
       }
     });
-  }, [leadFilters]);
+  }, []);
 
   // Only fetch todos once on mount
   useEffect(() => {

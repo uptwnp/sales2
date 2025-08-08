@@ -62,9 +62,18 @@ const LeadDetail: React.FC = () => {
 
   useEffect(() => {
     if (lead) {
-      setEditedLead(lead);
+      // If we are editing the same lead, only update the timestamp
+      // to prevent overwriting local changes.
+      if (editedLead && editedLead.id === lead.id) {
+        if (editedLead.updatedAt !== lead.updatedAt) {
+          setEditedLead((prev) => ({ ...prev!, updatedAt: lead.updatedAt }));
+        }
+      } else {
+        // This is for initial load or for a new lead
+        setEditedLead(lead);
+      }
     }
-  }, [lead]);
+  }, [lead, editedLead]);
 
   useEffect(() => {
     if (leadId) {

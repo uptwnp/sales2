@@ -30,52 +30,33 @@ const LeadsList: React.FC = () => {
   const { currentPage, sortField, sortDirection, searchQuery } = state;
 
   const leads = getFilteredLeads();
+  const isInitialMount = React.useRef(true);
 
-  // Only fetch leads when component mounts or when critical params change
+  // This effect handles resetting the page when filters or search query change.
   useEffect(() => {
-    fetchLeads({
-      page: currentPage,
-      perPage: 10,
-      sortField,
-      sortOrder: sortDirection,
-      search: searchQuery,
-      currentFilters: leadFilters,
-    });
-  }, []); // Empty dependency array - only run on mount
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+    } else {
+      // Any change in filters or search will reset the page.
+      updateState({ currentPage: 1 });
+    }
+  }, [leadFilters, searchQuery]);
 
-  // Separate effect for when filters change
+  // This effect handles the data fetching.
   useEffect(() => {
-    if (leadFilters.length > 0) {
+    const handler = setTimeout(() => {
       fetchLeads({
-        page: 1, // Reset to first page when filters change
+        page: currentPage,
         perPage: 10,
         sortField,
         sortOrder: sortDirection,
         search: searchQuery,
         currentFilters: leadFilters,
       });
-      updateState({ currentPage: 1 });
-    }
-  }, [leadFilters]);
+    }, 300); // Small debounce for all changes.
 
-  // Debounced search effect
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      if (searchQuery) {
-        fetchLeads({
-          page: 1,
-          perPage: 10,
-          sortField,
-          sortOrder: sortDirection,
-          search: searchQuery,
-          currentFilters: leadFilters,
-        });
-        updateState({ currentPage: 1 });
-      }
-    }, 500); // 500ms debounce
-
-    return () => clearTimeout(timeoutId);
-  }, [searchQuery]);
+    return () => clearTimeout(handler);
+  }, [currentPage, sortField, sortDirection, searchQuery, leadFilters]);
 
   const handleSort = (field: SortField) => {
     const newDirection = sortField === field && sortDirection === 'asc' ? 'desc' : 'asc';
