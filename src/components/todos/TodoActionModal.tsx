@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import Modal from '../common/Modal';
 import { useAppContext } from '../../contexts/AppContext';
-import { Todo } from '../../types';
+import { Todo } from '../../types/o-index';
 import { format } from 'date-fns';
 
 interface TodoActionModalProps {
   isOpen: boolean;
   onClose: () => void;
-  todo: Todo;
+  todo: Todo | null;
   actionType: 'complete' | 'cancel' | 'reschedule' | 'reopen';
 }
 
@@ -19,12 +19,20 @@ const TodoActionModal: React.FC<TodoActionModalProps> = ({
 }) => {
   const { updateTodo } = useAppContext();
   const [responseNote, setResponseNote] = useState('');
-  const [rescheduleDate, setRescheduleDate] = useState<string>(
-    new Date(todo.dateTime).toISOString().split('T')[0]
-  );
-  const [rescheduleTime, setRescheduleTime] = useState<string>(
-    format(new Date(todo.dateTime), 'HH:mm')
-  );
+  const [rescheduleDate, setRescheduleDate] = useState<string>('');
+  const [rescheduleTime, setRescheduleTime] = useState<string>('');
+
+  // Don't render if todo is null
+  if (!todo) {
+    return null;
+  }
+
+  // Initialize date and time if not set
+  if (!rescheduleDate || !rescheduleTime) {
+    const todoDate = new Date(todo.dateTime);
+    setRescheduleDate(todoDate.toISOString().split('T')[0]);
+    setRescheduleTime(format(todoDate, 'HH:mm'));
+  }
 
   const handleComplete = () => {
     updateTodo(todo.id, {

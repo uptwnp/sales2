@@ -12,7 +12,7 @@ import TagInput from '../common/TagInput';
 interface TodoViewModalProps {
   isOpen: boolean;
   onClose: () => void;
-  todo: Todo;
+  todo: Todo | null;
 }
 
 const TodoViewModal: React.FC<TodoViewModalProps> = ({
@@ -23,8 +23,13 @@ const TodoViewModal: React.FC<TodoViewModalProps> = ({
   const { getLeadById, updateTodo } = useAppContext();
   const navigate = useNavigate();
 
-  const [editedTodo, setEditedTodo] = useState<Todo>(todo);
+  const [editedTodo, setEditedTodo] = useState<Todo | null>(todo);
   const [isEditing, setIsEditing] = useState(false);
+
+  // Don't render if todo is null
+  if (!todo || !editedTodo) {
+    return null;
+  }
 
   const lead = getLeadById(editedTodo.leadId);
 
@@ -32,19 +37,21 @@ const TodoViewModal: React.FC<TodoViewModalProps> = ({
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
     const { name, value } = e.target;
-    setEditedTodo((prev) => ({ ...prev, [name]: value }));
+    setEditedTodo((prev) => prev ? ({ ...prev, [name]: value }) : null);
   };
 
   const handleDropdownChange = (name: string, value: string) => {
-    setEditedTodo((prev) => ({ ...prev, [name]: value }));
+    setEditedTodo((prev) => prev ? ({ ...prev, [name]: value }) : null);
   };
 
   const handleTagChange = (name: string, value: string[]) => {
-    setEditedTodo((prev) => ({ ...prev, [name]: value }));
+    setEditedTodo((prev) => prev ? ({ ...prev, [name]: value }) : null);
   };
 
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { value } = e.target;
+    if (!editedTodo) return;
+    
     const currentDateTime = new Date(editedTodo.dateTime);
     const [year, month, day] = value.split('-').map(Number);
 
@@ -52,34 +59,40 @@ const TodoViewModal: React.FC<TodoViewModalProps> = ({
     currentDateTime.setMonth(month - 1);
     currentDateTime.setDate(day);
 
-    setEditedTodo((prev) => ({
+    setEditedTodo((prev) => prev ? ({
       ...prev,
       dateTime: currentDateTime.toISOString(),
-    }));
+    }) : null);
   };
 
   const handleTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { value } = e.target;
+    if (!editedTodo) return;
+    
     const currentDateTime = new Date(editedTodo.dateTime);
     const [hours, minutes] = value.split(':').map(Number);
 
     currentDateTime.setHours(hours);
     currentDateTime.setMinutes(minutes);
 
-    setEditedTodo((prev) => ({
+    setEditedTodo((prev) => prev ? ({
       ...prev,
       dateTime: currentDateTime.toISOString(),
-    }));
+    }) : null);
   };
 
   const handleSave = () => {
-    updateTodo(todo.id, editedTodo);
-    setIsEditing(false);
+    if (editedTodo) {
+      updateTodo(todo.id, editedTodo);
+      setIsEditing(false);
+    }
   };
 
   const handleStatusChange = (
     newStatus: 'Completed' | 'Cancelled' | 'Pending'
   ) => {
+    if (!editedTodo) return;
+    
     const updatedTodo = {
       ...editedTodo,
       status: newStatus,

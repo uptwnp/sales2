@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Phone,
@@ -13,118 +13,152 @@ import { useAppContext } from '../../contexts/AppContext';
 import LeadFilterModal from './LeadFilterModal';
 import AddLeadModal from './AddLeadModal';
 import Badge from '../ui/Badge';
+import LoadingIndicator from '../ui/LoadingIndicator';
 import { usePersistentState } from '../../hooks/usePersistentState';
-import { formatPhoneNumber, getClipboardText, isValidPhoneNumber } from '../../utils/phone';
+import { useOptimizedDataFetching } from '../../hooks/useOptimizedDataFetching';
+import { Lead } from '../../types';
 
 type SortField = 'id' | 'name' | 'budget' | 'stage' | 'created_at';
 type SortDirection = 'asc' | 'desc';
 
 const LeadsList: React.FC = () => {
-  const { getFilteredLeads, leadFilters, clearLeadFilters, removeLeadFilter, fetchLeads, isLoading, getTodosByLeadId } = useAppContext();
+  const { 
+    getFilteredLeads, 
+    leadFilters, 
+    clearLeadFilters, 
+    removeLeadFilter, 
+    fetchLeads, 
+    isLoading: contextLoading, 
+    getTodosByLeadId,
+    setLeadFilters
+  } = useAppContext();
+  
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
   const [isAddLeadModalOpen, setIsAddLeadModalOpen] = useState(false);
   const navigate = useNavigate();
 
   // Use persistent state for leads section
-  const { state, updateState } = usePersistentState('leads');
-  const { currentPage, sortField, sortDirection, searchQuery } = state;
+  const { state, updateState, clearFilters, clearSearch, clearAll, updateFilters } = usePersistentState('leads');
+  const { currentPage, sortField, sortDirection, searchQuery, filters: savedFilters } = state;
 
-  const leads = getFilteredLeads();
-  const isInitialMount = React.useRef(true);
+  // Use optimized data fetching with caching
+  const {
+    data: cachedLeads,
+    isLoading: isDataLoading,
+    isBackgroundLoading,
+    fetchData,
+    backgroundRefresh
+  } = useOptimizedDataFetching<Lead[]>(
+    async (params) => {
+      await fetchLeads(params);
+      return getFilteredLeads();
+    },
+    { ttl: 2 * 60 * 1000, maxSize: 20 } // 2 minutes cache
+  );
 
-  // This effect handles resetting the page when filters or search query change.
+  const leads = cachedLeads || getFilteredLeads();
+  const hasInitialData = React.useRef(false);
+  const prevFiltersRef = React.useRef(leadFilters);
+
+  // Initialize filters from persistent state on mount
   useEffect(() => {
-    if (isInitialMount.current) {
-      isInitialMount.current = false;
-    } else {
-      // Any change in filters or search will reset the page.
-      updateState({ currentPage: 1 });
+    if (savedFilters && savedFilters.length > 0 && leadFilters.length === 0) {
+      setLeadFilters(savedFilters);
     }
-  }, [leadFilters, searchQuery]);
+  }, []); // Empty dependency array - only run once on mount
 
-  // This effect handles the data fetching.
+  // Sync filters to persistent state when they change
+  useEffect(() => {
+    const prevFilters = prevFiltersRef.current;
+    if (JSON.stringify(prevFilters) !== JSON.stringify(leadFilters)) {
+      // Update persistent state with new filters
+      updateFilters(leadFilters);
+      prevFiltersRef.current = leadFilters;
+    }
+  }, [leadFilters, updateFilters]);
+
+  // Data fetching effect
   useEffect(() => {
     const handler = setTimeout(() => {
-      fetchLeads({
+      const params = {
         page: currentPage,
         perPage: 10,
         sortField,
         sortOrder: sortDirection,
         search: searchQuery,
         currentFilters: leadFilters,
-      });
-    }, 300); // Small debounce for all changes.
+      };
+
+      if (cachedLeads && hasInitialData.current) {
+        backgroundRefresh(params);
+      } else {
+        fetchData(params);
+        hasInitialData.current = true;
+      }
+    }, 300);
 
     return () => clearTimeout(handler);
-  }, [currentPage, sortField, sortDirection, searchQuery, leadFilters]);
+  }, [currentPage, sortField, sortDirection, searchQuery, leadFilters, fetchData, backgroundRefresh, cachedLeads]);
 
-  const handleSort = (field: SortField) => {
+  const handleSort = useCallback((field: SortField) => {
     const newDirection = sortField === field && sortDirection === 'asc' ? 'desc' : 'asc';
     updateState({
       sortField: field,
       sortDirection: newDirection,
       currentPage: 1
     });
-    
-    fetchLeads({
-      page: 1,
-      perPage: 10,
-      sortField: field,
-      sortOrder: newDirection,
-      search: searchQuery,
-      currentFilters: leadFilters,
-    });
-  };
+  }, [sortField, sortDirection, updateState]);
 
-  const handleLeadClick = (leadId: number) => {
+  const handleLeadClick = useCallback((leadId: number) => {
     navigate(`/leads/${leadId}`);
-  };
+  }, [navigate]);
 
-  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleSearch = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
     updateState({
-      searchQuery: e.target.value,
+      searchQuery: value,
       currentPage: 1
     });
-  };
+  }, [updateState]);
 
-  const handleSearchFocus = async () => {
-    if (!searchQuery) {
-      const clipboardText = await getClipboardText();
-      const formattedNumber = formatPhoneNumber(clipboardText);
-      if (isValidPhoneNumber(formattedNumber)) {
-        updateState({ searchQuery: formattedNumber });
-      }
-    }
-  };
-
-  const handlePageChange = (newPage: number) => {
+  const handlePageChange = useCallback((newPage: number) => {
     updateState({ currentPage: newPage });
-    fetchLeads({
-      page: newPage,
-      perPage: 10,
-      sortField,
-      sortOrder: sortDirection,
-      search: searchQuery,
-      currentFilters: leadFilters,
-    });
-  };
+  }, [updateState]);
+
+  const handleClearFilters = useCallback(() => {
+    clearLeadFilters();
+    clearFilters();
+  }, [clearLeadFilters, clearFilters]);
+
+  const handleClearSearch = useCallback(() => {
+    updateState({ searchQuery: '', currentPage: 1 });
+  }, [updateState]);
+
+  const handleClearAll = useCallback(() => {
+    clearLeadFilters();
+    clearAll();
+  }, [clearLeadFilters, clearAll]);
 
   const propertyTypeLabel = (types: string[]) => {
-    return types.join(', ');
+    if (types.length === 0) return "Any";
+    if (types.length === 1) return types[0];
+    return `${types[0]} +${types.length - 1}`;
   };
 
   const locationLabel = (locations: string[]) => {
-    return locations.join(', ');
+    if (locations.length === 0) return "Any";
+    if (locations.length === 1) return locations[0];
+    return `${locations[0]} +${locations.length - 1}`;
   };
 
   const renderSortIcon = (field: SortField) => {
     if (sortField !== field) return null;
-    return sortDirection === 'asc' ? (
-      <ArrowUp size={14} />
-    ) : (
-      <ArrowDown size={14} />
-    );
+    return sortDirection === 'asc' ? <ArrowUp size={16} /> : <ArrowDown size={16} />;
   };
+
+  // Only show loading on initial load, not on background refreshes
+  const showLoading = isDataLoading && !hasInitialData.current;
+  const showBackgroundLoading = isBackgroundLoading && hasInitialData.current;
 
   return (
     <>
@@ -136,9 +170,8 @@ const LeadsList: React.FC = () => {
                 type="text"
                 placeholder="Search leads..."
                 className="input pr-10"
-                value={searchQuery}
+                value={searchQuery || ''}
                 onChange={handleSearch}
-                onFocus={handleSearchFocus}
               />
             </div>
             <button
@@ -172,11 +205,28 @@ const LeadsList: React.FC = () => {
             ))}
             <button
               className="text-sm text-red-600 hover:text-red-800 flex items-center"
-              onClick={clearLeadFilters}
+              onClick={handleClearFilters}
+            >
+              <X size={14} className="mr-1" />
+              Clear Filters
+            </button>
+            <button
+              className="text-sm text-red-600 hover:text-red-800 flex items-center"
+              onClick={handleClearAll}
             >
               <X size={14} className="mr-1" />
               Clear All
             </button>
+          </div>
+        )}
+
+        {/* Background loading indicator */}
+        {showBackgroundLoading && (
+          <div className="mb-2 p-2 bg-blue-50 border border-blue-200 rounded-md">
+            <div className="flex items-center text-blue-700 text-sm">
+              <LoadingIndicator type="spinner" size="sm" />
+              <span className="ml-2">Refreshing data in background...</span>
+            </div>
           </div>
         )}
 
@@ -226,10 +276,10 @@ const LeadsList: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {isLoading ? (
+                {showLoading ? (
                   <tr>
                     <td colSpan={10} className="px-6 py-4 text-center">
-                      Loading...
+                      <LoadingIndicator type="spinner" size="md" text="Loading leads..." />
                     </td>
                   </tr>
                 ) : leads.length === 0 ? (
@@ -271,7 +321,7 @@ const LeadsList: React.FC = () => {
                       </td>
                       <td className="table-cell">
                         <div className="flex flex-wrap gap-1">
-                          {lead.tags.slice(0, 2).map((tag, idx) => (
+                          {lead.tags.slice(0, 2).map((tag: string, idx: number) => (
                             <Badge key={idx} label={tag} color="gray" small />
                           ))}
                           {lead.tags.length > 2 && (
@@ -291,7 +341,7 @@ const LeadsList: React.FC = () => {
                       </td>
                       <td className="table-cell">
                         <div className="flex flex-wrap gap-1">
-                          {lead.propertyType.map((type, idx) => (
+                          {lead.propertyType.map((type: string, idx: number) => (
                             <Badge key={idx} label={type} color="gray" small />
                           ))}
                         </div>
@@ -339,14 +389,14 @@ const LeadsList: React.FC = () => {
               <div className="flex space-x-1">
                 <button
                   onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
-                  disabled={currentPage === 1 || isLoading}
+                  disabled={currentPage === 1 || showLoading}
                   className="btn btn-outline py-1 px-3 disabled:opacity-50"
                 >
                   Previous
                 </button>
                 <button
                   onClick={() => handlePageChange(currentPage + 1)}
-                  disabled={leads.length < 10 || isLoading}
+                  disabled={leads.length < 10 || showLoading}
                   className="btn btn-outline py-1 px-3 disabled:opacity-50"
                 >
                   Next

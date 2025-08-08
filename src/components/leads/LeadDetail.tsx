@@ -30,7 +30,7 @@ const LeadDetail: React.FC = () => {
   const leadId = id ? parseInt(id) : 0;
   const navigate = useNavigate();
 
-  const { getLeadById, getTodosByLeadId, updateLead, setActiveLeadId } =
+  const { getLeadById, getTodosByLeadId, updateLead, setActiveLeadId, fetchSingleLead } =
     useAppContext();
 
   const lead = getLeadById(leadId);
@@ -59,6 +59,13 @@ const LeadDetail: React.FC = () => {
     setCollapsedSections(newState);
     localStorage.setItem('collapsedSections', JSON.stringify(newState));
   };
+
+  // Fetch lead if not found in current state
+  useEffect(() => {
+    if (leadId && !lead) {
+      fetchSingleLead(leadId);
+    }
+  }, [leadId, lead, fetchSingleLead]);
 
   useEffect(() => {
     if (lead) {

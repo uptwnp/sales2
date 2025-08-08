@@ -23,6 +23,7 @@ import {
   getOptionByValue,
   getApiValue,
 } from "../data/options";
+import { useOptimizedDataFetching } from "../hooks/useOptimizedDataFetching";
 
 interface ApiLead {
   id: string;
@@ -113,6 +114,7 @@ interface AppContextType {
     search?: string;
     currentFilters?: FilterOption[];
   }) => Promise<void>;
+  fetchSingleLead: (id: number) => Promise<Lead | null>;
   fetchTodos: (params?: {
     type?: string;
     page?: number;
@@ -201,6 +203,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
     data3: apiLead.data_3 || "",
     createdAt: apiLead.created_at,
     updatedAt: apiLead.updated_at,
+    isDeleted: apiLead.is_deleted === "1",
   });
 
   const fetchTodos = useCallback(
@@ -484,7 +487,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
         alternative_contact_details: lead.alternatePhone,
         stage: getApiValue(stageOptions, lead.stage),
         ourRating: lead.ourRating,
-        intent: lead.intent,
+        intent: getApiValue(intentOptions, lead.intent),
         budget: lead.budget.toString(),
         preferred_area: lead.preferredLocation.join(","),
         size: lead.preferredSize.join(","),
@@ -842,6 +845,48 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
     return todos.filter((todo) => todo.leadId === leadId);
   };
 
+  const fetchSingleLead = useCallback(
+    async (id: number) => {
+      const requestKey = createRequestKey("singleLead", id);
+      return makeRequest(requestKey, async () => {
+        setIsLoading(true);
+        setError(null);
+
+        try {
+          const response = await fetch(`${API_BASE_URL}/?action=get_lead&id=${id}`);
+          if (!response.ok) {
+            throw new Error("Failed to fetch single lead");
+          }
+          const data = await response.json();
+          if (data.status === "success") {
+            const transformedLead = transformApiLeadToLead(data.data);
+            setLeads((prevLeads) => {
+              const existingLeadIndex = prevLeads.findIndex(
+                (l) => l.id === transformedLead.id
+              );
+              if (existingLeadIndex >= 0) {
+                const updatedLeads = [...prevLeads];
+                updatedLeads[existingLeadIndex] = transformedLead;
+                return updatedLeads;
+              }
+              return [...prevLeads, transformedLead];
+            });
+            return transformedLead;
+          } else {
+            throw new Error(data.message || "Failed to fetch single lead");
+          }
+        } catch (err) {
+          setError(err instanceof Error ? err.message : "An error occurred");
+          console.error("Error fetching single lead:", err);
+          return null;
+        } finally {
+          setIsLoading(false);
+        }
+      });
+    },
+    []
+  );
+
   return (
     <AppContext.Provider
       value={{
@@ -870,6 +915,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
         getLeadById,
         getTodosByLeadId,
         fetchLeads,
+        fetchSingleLead,
         fetchTodos,
       }}
     >

@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Modal from '../common/Modal';
 import { useAppContext } from '../../contexts/AppContext';
-import { FilterOption } from '../../types';
+import { FilterOption } from '../../types/o-index';
 import { dropdownOptions, tagOptions } from '../../data/options';
 import Dropdown from '../common/Dropdown';
 import TagInput from '../common/TagInput';
@@ -27,6 +27,11 @@ const LeadFilterModal: React.FC<LeadFilterModalProps> = ({ isOpen, onClose }) =>
   const [tags, setTags] = useState<string[]>([]);
   const [assignedTo, setAssignedTo] = useState<string[]>([]);
   const [budget, setBudget] = useState<{ min?: string; max?: string }>({});
+
+  // Sync activeFilters with leadFilters when they change
+  useEffect(() => {
+    setActiveFilters(leadFilters);
+  }, [leadFilters]);
 
   const handleApplyFilters = () => {
     const newFilters: FilterOption[] = [];
