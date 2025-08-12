@@ -113,7 +113,7 @@ interface AppContextType {
     sortOrder?: "asc" | "desc";
     search?: string;
     currentFilters?: FilterOption[];
-  }) => Promise<void>;
+  }) => Promise<Lead[]>;
   fetchSingleLead: (id: number) => Promise<Lead | null>;
   fetchTodos: (params?: {
     type?: string;
@@ -302,7 +302,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
         search?: string;
         currentFilters?: FilterOption[];
       } = {}
-    ) => {
+    ): Promise<Lead[]> => {
       const {
         page = 1,
         perPage = 20,
@@ -334,10 +334,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
           currentFilters.forEach((filter) => {
             switch (filter.field) {
               case "stage":
-                queryParams.append(
-                  "stage",
-                  getApiValue(stageOptions, filter.value as string)
-                );
+                const stageApiValue = getApiValue(stageOptions, filter.value as string);
+                // If the stage value doesn't match any known stage, use "Other" as fallback
+                const finalStageValue = stageApiValue === filter.value && !stageOptions.find(opt => opt.value === filter.value) 
+                  ? "Other" 
+                  : stageApiValue;
+                queryParams.append("stage", finalStageValue);
                 break;
 
               case "priority":
@@ -414,12 +416,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
               transformApiLeadToLead(item)
             );
             setLeads(transformedLeads);
+            return transformedLeads; // Return the actual data
           } else {
             throw new Error(data.message || "Failed to fetch leads");
           }
         } catch (err) {
           setError(err instanceof Error ? err.message : "An error occurred");
           console.error("Error fetching leads:", err);
+          throw err;
         } finally {
           setIsLoading(false);
         }

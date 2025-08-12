@@ -57,17 +57,21 @@ const LeadsList: React.FC = () => {
     backgroundRefresh
   } = useOptimizedDataFetching<Lead[]>(
     async (params) => {
-      await fetchLeads(params);
-      return getFilteredLeads();
+      // Call fetchLeads and return the actual data from the API
+      return await fetchLeads(params);
     },
     { ttl: 2 * 60 * 1000, maxSize: 20 } // 2 minutes cache
   );
 
-  const leads = cachedLeads || getFilteredLeads();
+  const leads = cachedLeads || [];
+
   const hasInitialData = React.useRef(false);
   const prevFiltersRef = React.useRef(leadFilters);
   const latestFiltersRef = React.useRef(leadFilters);
   const [isFiltersInitialized, setIsFiltersInitialized] = useState(false);
+  const filtersClearedRef = React.useRef(false);
+  const lastRequestParams = React.useRef<string>('');
+  const lastRequestTime = React.useRef<number>(0);
 
   // Keep track of the latest filters
   useEffect(() => {
@@ -76,19 +80,11 @@ const LeadsList: React.FC = () => {
 
   // Initialize filters from persistent state on mount
   useEffect(() => {
-    console.log('LeadsList: Initializing filters', {
-      savedFilters: savedFilters?.length || 0,
-      leadFilters: leadFilters.length,
-      isFiltersInitialized
-    });
-    
     if (savedFilters && savedFilters.length > 0 && leadFilters.length === 0) {
-      console.log('LeadsList: Setting saved filters', savedFilters);
       setLeadFilters(savedFilters);
       setIsFiltersInitialized(true);
     } else {
       // Mark as initialized even if no saved filters or if filters already exist
-      console.log('LeadsList: Marking as initialized (no saved filters)');
       setIsFiltersInitialized(true);
     }
   }, []); // Empty dependency array - only run once on mount
@@ -97,11 +93,15 @@ const LeadsList: React.FC = () => {
   useEffect(() => {
     const prevFilters = prevFiltersRef.current;
     if (JSON.stringify(prevFilters) !== JSON.stringify(leadFilters)) {
-      console.log('LeadsList: Filters changed', {
-        prevFilters: prevFilters.length,
-        newFilters: leadFilters.length,
-        filters: leadFilters
-      });
+      // Check if filters were cleared
+      const filtersCleared = prevFilters.length > 0 && leadFilters.length === 0;
+      if (filtersCleared) {
+        filtersClearedRef.current = true;
+      }
+      
+      // Reset last request params when filters change significantly
+      lastRequestParams.current = '';
+      
       // Update persistent state with new filters
       updateFilters(leadFilters);
       prevFiltersRef.current = leadFilters;
@@ -112,17 +112,8 @@ const LeadsList: React.FC = () => {
 
   // Data fetching effect - only run after filters are initialized
   useEffect(() => {
-    console.log('LeadsList: Data fetching effect', {
-      isFiltersInitialized,
-      hasInitialData: hasInitialData.current,
-      leadFilters: leadFilters.length,
-      currentPage,
-      searchQuery
-    });
-    
     // Don't fetch data until filters are properly initialized
     if (!isFiltersInitialized) {
-      console.log('LeadsList: Skipping data fetch - filters not initialized');
       return;
     }
 
@@ -130,22 +121,33 @@ const LeadsList: React.FC = () => {
     const delay = leadFilters.length > 0 ? 100 : 300;
 
     const handler = setTimeout(() => {
-      console.log('LeadsList: Executing data fetch', {
-        currentFilters: latestFiltersRef.current,
-        cachedLeads: !!cachedLeads,
-        hasInitialData: hasInitialData.current
-      });
-      
       const params = {
         page: currentPage,
-        perPage: 10,
+        perPage: 20,
         sortField,
         sortOrder: sortDirection,
         search: searchQuery,
         currentFilters: latestFiltersRef.current, // Use latest filters from ref
       };
 
-      if (cachedLeads && hasInitialData.current) {
+      // Create a unique key for this request
+      const requestKey = JSON.stringify(params);
+      
+      // Prevent duplicate requests with the same parameters
+      if (lastRequestParams.current === requestKey) {
+        return;
+      }
+      
+      // Debounce: prevent requests that are too close together
+      const now = Date.now();
+      if (now - lastRequestTime.current < 500) { // 500ms minimum between requests
+        return;
+      }
+      
+      lastRequestParams.current = requestKey;
+      lastRequestTime.current = now;
+
+      if (hasInitialData.current) {
         backgroundRefresh(params);
       } else {
         fetchData(params);
@@ -154,7 +156,7 @@ const LeadsList: React.FC = () => {
     }, delay);
 
     return () => clearTimeout(handler);
-  }, [currentPage, sortField, sortDirection, searchQuery, leadFilters, fetchData, backgroundRefresh, cachedLeads, isFiltersInitialized]);
+  }, [currentPage, sortField, sortDirection, searchQuery, leadFilters, fetchData, backgroundRefresh, isFiltersInitialized]);
 
   const handleSort = useCallback((field: SortField) => {
     const newDirection = sortField === field && sortDirection === 'asc' ? 'desc' : 'asc';
@@ -184,7 +186,19 @@ const LeadsList: React.FC = () => {
   const handleClearFilters = useCallback(() => {
     clearLeadFilters();
     clearFilters();
-  }, [clearLeadFilters, clearFilters]);
+    // Force refresh data when filters are cleared
+    if (hasInitialData.current) {
+      const params = {
+        page: currentPage,
+        perPage: 20,
+        sortField,
+        sortOrder: sortDirection,
+        search: searchQuery,
+        currentFilters: [],
+      };
+      fetchData(params, { forceRefresh: true });
+    }
+  }, [clearLeadFilters, clearFilters, currentPage, sortField, sortDirection, searchQuery, fetchData]);
 
   const handleClearSearch = useCallback(() => {
     updateState({ searchQuery: '', currentPage: 1 });
@@ -193,7 +207,19 @@ const LeadsList: React.FC = () => {
   const handleClearAll = useCallback(() => {
     clearLeadFilters();
     clearAll();
-  }, [clearLeadFilters, clearAll]);
+    // Force refresh data when all filters are cleared
+    if (hasInitialData.current) {
+      const params = {
+        page: currentPage,
+        perPage: 20,
+        sortField,
+        sortOrder: sortDirection,
+        searchQuery: '',
+        currentFilters: [],
+      };
+      fetchData(params, { forceRefresh: true });
+    }
+  }, [clearLeadFilters, clearAll, currentPage, sortField, sortDirection, fetchData]);
 
   const propertyTypeLabel = (types: string[]) => {
     if (types.length === 0) return "Any";
@@ -511,7 +537,7 @@ const LeadsList: React.FC = () => {
                 </button>
                 <button
                   onClick={() => handlePageChange(currentPage + 1)}
-                  disabled={leads.length < 10 || showLoading}
+                  disabled={leads.length < 20 || showLoading}
                   className="btn btn-outline py-1 px-3 disabled:opacity-50"
                 >
                   Next
