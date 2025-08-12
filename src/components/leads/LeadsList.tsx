@@ -17,6 +17,9 @@ import LoadingIndicator from '../ui/LoadingIndicator';
 import { usePersistentState } from '../../hooks/usePersistentState';
 import { useOptimizedDataFetching } from '../../hooks/useOptimizedDataFetching';
 import { Lead } from '../../types';
+import { dropdownOptions, tagOptions } from '../../data/options';
+import Dropdown from '../common/Dropdown';
+import TagInput from '../common/TagInput';
 
 type SortField = 'id' | 'name' | 'budget' | 'stage' | 'created_at';
 type SortDirection = 'asc' | 'desc';
@@ -36,6 +39,10 @@ const LeadsList: React.FC = () => {
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
   const [isAddLeadModalOpen, setIsAddLeadModalOpen] = useState(false);
   const navigate = useNavigate();
+
+  // Desktop filter states
+  const [desktopStage, setDesktopStage] = useState('');
+  const [desktopTags, setDesktopTags] = useState<string[]>([]);
 
   // Use persistent state for leads section
   const { state, updateState, clearFilters, clearSearch, clearAll, updateFilters } = usePersistentState('leads');
@@ -59,11 +66,30 @@ const LeadsList: React.FC = () => {
   const leads = cachedLeads || getFilteredLeads();
   const hasInitialData = React.useRef(false);
   const prevFiltersRef = React.useRef(leadFilters);
+  const latestFiltersRef = React.useRef(leadFilters);
+  const [isFiltersInitialized, setIsFiltersInitialized] = useState(false);
+
+  // Keep track of the latest filters
+  useEffect(() => {
+    latestFiltersRef.current = leadFilters;
+  }, [leadFilters]);
 
   // Initialize filters from persistent state on mount
   useEffect(() => {
+    console.log('LeadsList: Initializing filters', {
+      savedFilters: savedFilters?.length || 0,
+      leadFilters: leadFilters.length,
+      isFiltersInitialized
+    });
+    
     if (savedFilters && savedFilters.length > 0 && leadFilters.length === 0) {
+      console.log('LeadsList: Setting saved filters', savedFilters);
       setLeadFilters(savedFilters);
+      setIsFiltersInitialized(true);
+    } else {
+      // Mark as initialized even if no saved filters or if filters already exist
+      console.log('LeadsList: Marking as initialized (no saved filters)');
+      setIsFiltersInitialized(true);
     }
   }, []); // Empty dependency array - only run once on mount
 
@@ -71,22 +97,52 @@ const LeadsList: React.FC = () => {
   useEffect(() => {
     const prevFilters = prevFiltersRef.current;
     if (JSON.stringify(prevFilters) !== JSON.stringify(leadFilters)) {
+      console.log('LeadsList: Filters changed', {
+        prevFilters: prevFilters.length,
+        newFilters: leadFilters.length,
+        filters: leadFilters
+      });
       // Update persistent state with new filters
       updateFilters(leadFilters);
       prevFiltersRef.current = leadFilters;
+      // Mark filters as initialized when they change
+      setIsFiltersInitialized(true);
     }
   }, [leadFilters, updateFilters]);
 
-  // Data fetching effect
+  // Data fetching effect - only run after filters are initialized
   useEffect(() => {
+    console.log('LeadsList: Data fetching effect', {
+      isFiltersInitialized,
+      hasInitialData: hasInitialData.current,
+      leadFilters: leadFilters.length,
+      currentPage,
+      searchQuery
+    });
+    
+    // Don't fetch data until filters are properly initialized
+    if (!isFiltersInitialized) {
+      console.log('LeadsList: Skipping data fetch - filters not initialized');
+      return;
+    }
+
+    // Use shorter delay for filter changes to prevent lag
+    const delay = leadFilters.length > 0 ? 100 : 300;
+
     const handler = setTimeout(() => {
+      console.log('LeadsList: Executing data fetch', {
+        currentFilters: latestFiltersRef.current,
+        cachedLeads: !!cachedLeads,
+        hasInitialData: hasInitialData.current
+      });
+      
       const params = {
         page: currentPage,
         perPage: 10,
         sortField,
         sortOrder: sortDirection,
         search: searchQuery,
-        currentFilters: leadFilters,
+        currentFilters: latestFiltersRef.current, // Use latest filters from ref
       };
 
       if (cachedLeads && hasInitialData.current) {
@@ -95,10 +151,10 @@ const LeadsList: React.FC = () => {
         fetchData(params);
         hasInitialData.current = true;
       }
-    }, 300);
+    }, delay);
 
     return () => clearTimeout(handler);
-  }, [currentPage, sortField, sortDirection, searchQuery, leadFilters, fetchData, backgroundRefresh, cachedLeads]);
+  }, [currentPage, sortField, sortDirection, searchQuery, leadFilters, fetchData, backgroundRefresh, cachedLeads, isFiltersInitialized]);
 
   const handleSort = useCallback((field: SortField) => {
     const newDirection = sortField === field && sortDirection === 'asc' ? 'desc' : 'asc';
@@ -160,11 +216,52 @@ const LeadsList: React.FC = () => {
   const showLoading = isDataLoading && !hasInitialData.current;
   const showBackgroundLoading = isBackgroundLoading && hasInitialData.current;
 
+  // Handle desktop filter changes
+  const handleDesktopStageChange = useCallback((value: string) => {
+    setDesktopStage(value);
+    
+    // Update filters
+    const newFilters = leadFilters.filter(filter => filter.field !== 'stage');
+    if (value) {
+      newFilters.push({ field: 'stage', operator: '=', value });
+    }
+    setLeadFilters(newFilters);
+  }, [leadFilters, setLeadFilters]);
+
+  const handleDesktopTagsChange = useCallback((tags: string[]) => {
+    setDesktopTags(tags);
+    
+    // Update filters
+    const newFilters = leadFilters.filter(filter => filter.field !== 'tags');
+    if (tags.length > 0) {
+      newFilters.push({ field: 'tags', operator: '=', value: tags });
+    }
+    setLeadFilters(newFilters);
+  }, [leadFilters, setLeadFilters]);
+
+  // Sync desktop filters with leadFilters
+  useEffect(() => {
+    const stageFilter = leadFilters.find(filter => filter.field === 'stage');
+    const tagsFilter = leadFilters.find(filter => filter.field === 'tags');
+    
+    if (stageFilter) {
+      setDesktopStage(stageFilter.value as string);
+    } else {
+      setDesktopStage('');
+    }
+    
+    if (tagsFilter) {
+      setDesktopTags(Array.isArray(tagsFilter.value) ? tagsFilter.value : [tagsFilter.value as string]);
+    } else {
+      setDesktopTags([]);
+    }
+  }, [leadFilters]);
+
   return (
     <>
       <div className="p-2">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
-          <div className="flex mt-4 md:mt-0 space-x-2">
+          <div className="flex flex-col md:flex-row mt-4 md:mt-0 space-y-2 md:space-y-0 md:space-x-2 w-full">
             <div className="relative">
               <input
                 type="text"
@@ -174,21 +271,46 @@ const LeadsList: React.FC = () => {
                 onChange={handleSearch}
               />
             </div>
-            <button
-              className="btn btn-outline flex items-center"
-              onClick={() => setIsFilterModalOpen(true)}
-            >
-              <Filter size={16} />
-            </button>
+            
+            {/* Desktop-only filters in same line */}
+            <div className="hidden md:flex md:space-x-2 md:flex-1">
+              <div className="flex-1 max-w-xs">
+                <Dropdown
+                  options={dropdownOptions.stage}
+                  value={desktopStage}
+                  onChange={handleDesktopStageChange}
+                  placeholder="All Stages"
+                />
+              </div>
+              <div className="flex-1 max-w-xs">
+                <TagInput
+                  options={tagOptions.tags}
+                  value={desktopTags}
+                  onChange={handleDesktopTagsChange}
+                  placeholder="Select tags..."
+                />
+              </div>
+            </div>
+            
+            <div className="flex space-x-2">
+              <button
+                className="btn btn-outline flex items-center h-10 px-3"
+                onClick={() => setIsFilterModalOpen(true)}
+              >
+                <Filter size={16} />
+              </button>
 
-            <button
-              className="btn btn-primary"
-              onClick={() => setIsAddLeadModalOpen(true)}
-            >
-              <Plus size={16} />
-            </button>
+              <button
+                className="btn btn-primary flex items-center h-10 px-3"
+                onClick={() => setIsAddLeadModalOpen(true)}
+              >
+                <Plus size={16} />
+              </button>
+            </div>
           </div>
         </div>
+
+        {/* Desktop-only filter section - removed since moved to top line */}
 
         {leadFilters.length > 0 && (
           <div className="flex flex-wrap items-center gap-2 mb-4 p-2 bg-gray-50 rounded-md">
@@ -203,13 +325,6 @@ const LeadsList: React.FC = () => {
                 onClose={() => removeLeadFilter(index)}
               />
             ))}
-            <button
-              className="text-sm text-red-600 hover:text-red-800 flex items-center"
-              onClick={handleClearFilters}
-            >
-              <X size={14} className="mr-1" />
-              Clear Filters
-            </button>
             <button
               className="text-sm text-red-600 hover:text-red-800 flex items-center"
               onClick={handleClearAll}
