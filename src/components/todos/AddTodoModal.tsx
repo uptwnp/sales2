@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Modal from '../common/Modal';
 import { useAppContext } from '../../contexts/AppContext';
@@ -6,6 +6,7 @@ import { Todo, DropdownOption } from '../../types';
 import { dropdownOptions, tagOptions } from '../../data/options';
 import Dropdown from '../common/Dropdown';
 import TagInput from '../common/TagInput';
+import QuickDateTimeInput from '../common/QuickDateTimeInput';
 
 interface AddTodoModalProps {
   isOpen: boolean;
@@ -23,18 +24,31 @@ const AddTodoModal: React.FC<AddTodoModalProps> = ({
   const { addTodo, leads } = useAppContext();
   const navigate = useNavigate();
   
-  const initialTodoState: Omit<Todo, 'id' | 'createdAt' | 'updatedAt'> = {
-    leadId: leadId || 0,
-    type: defaultType || 'Follow Up',
-    title: '',
-    description: '',
-    responseNote: '',
-    status: 'Pending',
-    dateTime: new Date().toISOString(),
-    participants: [],
+  const getInitialTodoState = (): Omit<Todo, 'id' | 'createdAt' | 'updatedAt'> => {
+    // Create tomorrow at 11 AM in local time
+    const now = new Date();
+    const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 11, 0, 0, 0);
+    
+    return {
+      leadId: leadId || 0,
+      type: defaultType || 'Follow Up',
+
+      description: '',
+      responseNote: '',
+      status: 'Pending',
+      dateTime: tomorrow.toISOString(),
+      participants: [],
+    };
   };
 
-  const [formData, setFormData] = useState(initialTodoState);
+  const [formData, setFormData] = useState(getInitialTodoState);
+
+  // Reset form when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setFormData(getInitialTodoState());
+    }
+  }, [isOpen, leadId, defaultType]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -45,27 +59,14 @@ const AddTodoModal: React.FC<AddTodoModalProps> = ({
     setFormData({ ...formData, [name]: value });
   };
 
-  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { value } = e.target;
-    const currentDateTime = new Date(formData.dateTime);
-    const [year, month, day] = value.split('-').map(Number);
-    
-    currentDateTime.setFullYear(year);
-    currentDateTime.setMonth(month - 1);
-    currentDateTime.setDate(day);
-    
-    setFormData({ ...formData, dateTime: currentDateTime.toISOString() });
+  const handleDateChange = (dateValue: string) => {
+    const newDate = new Date(`${dateValue}T${timeValue}`);
+    setFormData({ ...formData, dateTime: newDate.toISOString() });
   };
 
-  const handleTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { value } = e.target;
-    const currentDateTime = new Date(formData.dateTime);
-    const [hours, minutes] = value.split(':').map(Number);
-    
-    currentDateTime.setHours(hours);
-    currentDateTime.setMinutes(minutes);
-    
-    setFormData({ ...formData, dateTime: currentDateTime.toISOString() });
+  const handleTimeChange = (timeValue: string) => {
+    const newDate = new Date(`${dateValue}T${timeValue}`);
+    setFormData({ ...formData, dateTime: newDate.toISOString() });
   };
 
   const handleSubmit = async () => {
@@ -75,20 +76,24 @@ const AddTodoModal: React.FC<AddTodoModalProps> = ({
       navigate(`/leads/${formData.leadId}`);
     }
     
-    setFormData(initialTodoState);
+    setFormData(getInitialTodoState());
     onClose();
   };
 
   const isFormValid = () => {
     return (
       formData.leadId !== 0 &&
-      formData.title.trim() !== ''
+      formData.description.trim() !== ''
     );
   };
 
-  const currentDate = new Date(formData.dateTime);
-  const dateValue = currentDate.toISOString().split('T')[0];
-  const timeValue = `${String(currentDate.getHours()).padStart(2, '0')}:${String(currentDate.getMinutes()).padStart(2, '0')}`;
+  const { dateValue, timeValue } = useMemo(() => {
+    const currentDate = new Date(formData.dateTime);
+    return {
+      dateValue: currentDate.toISOString().split('T')[0],
+      timeValue: `${String(currentDate.getHours()).padStart(2, '0')}:${String(currentDate.getMinutes()).padStart(2, '0')}`
+    };
+  }, [formData.dateTime]);
 
   const leadOptions: DropdownOption[] = leads.map(lead => ({
     value: lead.id.toString(),
@@ -125,17 +130,7 @@ const AddTodoModal: React.FC<AddTodoModalProps> = ({
           />
         </div>
         
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Title *</label>
-          <input
-            type="text"
-            name="title"
-            value={formData.title}
-            onChange={handleInputChange}
-            className="input"
-            placeholder="Enter task title"
-          />
-        </div>
+
         
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
@@ -150,23 +145,21 @@ const AddTodoModal: React.FC<AddTodoModalProps> = ({
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Date *</label>
-            <input
+            <QuickDateTimeInput
               type="date"
+              label="Date *"
               value={dateValue}
               onChange={handleDateChange}
-              className="input"
               required
             />
           </div>
           
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Time *</label>
-            <input
+            <QuickDateTimeInput
               type="time"
+              label="Time *"
               value={timeValue}
               onChange={handleTimeChange}
-              className="input"
               required
             />
           </div>

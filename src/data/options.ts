@@ -100,24 +100,32 @@ export const priorityOptions: Option[] = [
 
 // === Simple Uniform Options ===
 export const sourceOptions = [
-  "Organic Social Media",
-  "Youtube",
-  "Referral",
-  "GMB Others",
-  "Our GMB",
-  "Website",
-  "M3M",
-  "Trident",
-  "Dealer Network",
-  "Social Media",
-  "Cold Call",
-  "Olx",
-  "Offline Meet",
-  "Property DB",
-  "Shoping",
-  "Other",
-  "Groups",
-  "Other",
+"Organic Social Media",
+"Youtube",
+"Referral",
+"GMB Others",
+"Our GMB",
+"Website",
+"M3M",
+"Trident",
+"Dealer Network",
+"Social Media",
+"Cold Call",
+"Olx",
+"Offline Meet",
+"Property DB",
+"Shoping",
+"Other",
+"Groups",
+"Ads Display",
+"Ads Search",
+"Many Chats",
+"Listings",
+"Physical World",
+"Holdings",
+"Other Organic Display",
+"Other Organic Search"
+
 ].map(createOption);
 
 export const mediumOptions = ["Post", "Story", "Reel", "Direct", "Other"].map(
@@ -181,9 +189,6 @@ export const segmentOptions: Option[] = [
   "Panipat Investors",
   "Rohtak",
   "Sonipat",
-  "Sigma",
-  "Trident",
-  "Godrej",
   "M3M",
 ].map(createOption);
 

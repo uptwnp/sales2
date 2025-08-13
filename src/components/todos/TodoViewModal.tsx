@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Modal from '../common/Modal';
 import { useAppContext } from '../../contexts/AppContext';
@@ -8,6 +8,7 @@ import Badge from '../ui/Badge';
 import { dropdownOptions, tagOptions } from '../../data/options';
 import Dropdown from '../common/Dropdown';
 import TagInput from '../common/TagInput';
+import QuickDateTimeInput from '../common/QuickDateTimeInput';
 
 interface TodoViewModalProps {
   isOpen: boolean;
@@ -25,6 +26,16 @@ const TodoViewModal: React.FC<TodoViewModalProps> = ({
 
   const [editedTodo, setEditedTodo] = useState<Todo | null>(todo);
   const [isEditing, setIsEditing] = useState(false);
+
+  // Update editedTodo when todo prop changes
+  useEffect(() => {
+    setEditedTodo(todo);
+  }, [todo]);
+
+  // Don't render if modal is not open
+  if (!isOpen) {
+    return null;
+  }
 
   // Don't render if todo is null
   if (!todo || !editedTodo) {
@@ -131,25 +142,14 @@ const TodoViewModal: React.FC<TodoViewModalProps> = ({
                   placeholder="Select type"
                 />
               ) : (
-                <h3 className="text-lg font-medium mt-2">{editedTodo.title}</h3>
+                <h3 className="text-lg font-medium mt-2">{editedTodo.type}</h3>
               )}
             </div>
           </div>
 
           {isEditing ? (
             <>
-              <div className="mt-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Title
-                </label>
-                <input
-                  type="text"
-                  name="title"
-                  value={editedTodo.title}
-                  onChange={handleInputChange}
-                  className="input"
-                />
-              </div>
+
               <div className="mt-4">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Description
@@ -189,25 +189,19 @@ const TodoViewModal: React.FC<TodoViewModalProps> = ({
           {isEditing ? (
             <>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Date
-                </label>
-                <input
+                <QuickDateTimeInput
                   type="date"
+                  label="Date"
                   value={dateValue}
                   onChange={handleDateChange}
-                  className="input"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Time
-                </label>
-                <input
+                <QuickDateTimeInput
                   type="time"
+                  label="Time"
                   value={timeValue}
                   onChange={handleTimeChange}
-                  className="input"
                 />
               </div>
             </>

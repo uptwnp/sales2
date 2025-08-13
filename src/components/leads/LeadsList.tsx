@@ -13,7 +13,6 @@ import { useAppContext } from '../../contexts/AppContext';
 import LeadFilterModal from './LeadFilterModal';
 import AddLeadModal from './AddLeadModal';
 import Badge from '../ui/Badge';
-import LoadingIndicator from '../ui/LoadingIndicator';
 import { usePersistentState } from '../../hooks/usePersistentState';
 import { useOptimizedDataFetching } from '../../hooks/useOptimizedDataFetching';
 import { Lead } from '../../types';
@@ -38,11 +37,13 @@ const LeadsList: React.FC = () => {
   
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
   const [isAddLeadModalOpen, setIsAddLeadModalOpen] = useState(false);
+  const [totalLeads, setTotalLeads] = useState(0);
   const navigate = useNavigate();
 
   // Desktop filter states
   const [desktopStage, setDesktopStage] = useState('');
   const [desktopTags, setDesktopTags] = useState<string[]>([]);
+  const [desktopSegment, setDesktopSegment] = useState('');
 
   // Use persistent state for leads section
   const { state, updateState, clearFilters, clearSearch, clearAll, updateFilters } = usePersistentState('leads');
@@ -52,10 +53,8 @@ const LeadsList: React.FC = () => {
   const {
     data: cachedLeads,
     isLoading: isDataLoading,
-    isBackgroundLoading,
-    fetchData,
-    backgroundRefresh
-  } = useOptimizedDataFetching<Lead[]>(
+    fetchData
+  } = useOptimizedDataFetching<{ data: Lead[]; total: number }>(
     async (params) => {
       // Call fetchLeads and return the actual data from the API
       return await fetchLeads(params);
@@ -63,7 +62,16 @@ const LeadsList: React.FC = () => {
     { ttl: 2 * 60 * 1000, maxSize: 20 } // 2 minutes cache
   );
 
-  const leads = cachedLeads || [];
+  const leads = cachedLeads?.data || [];
+  const total = cachedLeads?.total || 0;
+  const totalPages = Math.ceil(total / 20);
+
+  // Update total leads when cached data changes
+  useEffect(() => {
+    if (cachedLeads?.total !== undefined) {
+      setTotalLeads(cachedLeads.total);
+    }
+  }, [cachedLeads?.total]);
 
   const hasInitialData = React.useRef(false);
   const prevFiltersRef = React.useRef(leadFilters);
@@ -72,6 +80,61 @@ const LeadsList: React.FC = () => {
   const filtersClearedRef = React.useRef(false);
   const lastRequestParams = React.useRef<string>('');
   const lastRequestTime = React.useRef<number>(0);
+
+  // Save page state before navigation
+  const savePageState = useCallback(() => {
+    // Save scroll position to session storage
+    sessionStorage.setItem('leadsListScrollPosition', window.scrollY.toString());
+  }, []);
+
+  // Restore page state after navigation
+  const restorePageState = useCallback(() => {
+    const savedScrollPosition = sessionStorage.getItem('leadsListScrollPosition');
+    if (savedScrollPosition) {
+      const scrollPosition = parseInt(savedScrollPosition);
+      if (scrollPosition > 0) {
+        window.scrollTo(0, scrollPosition);
+      }
+    }
+  }, []);
+
+  // Restore page state on mount if we have data
+  useEffect(() => {
+    if (leads.length > 0) {
+      // Small delay to ensure DOM is ready
+      setTimeout(() => {
+        restorePageState();
+      }, 50);
+    }
+  }, [leads.length, restorePageState]);
+
+  // Save page state when component unmounts
+  useEffect(() => {
+    return () => {
+      savePageState();
+    };
+  }, [savePageState]);
+
+  // Immediately check for cached data on mount
+  useEffect(() => {
+    if (leads.length > 0) {
+      hasInitialData.current = true;
+    } else if (isFiltersInitialized) {
+      // If no data but filters are initialized, try to get cached data immediately
+      const params = {
+        page: currentPage,
+        perPage: 20,
+        sortField,
+        sortOrder: sortDirection,
+        search: searchQuery,
+        currentFilters: latestFiltersRef.current,
+      };
+      
+      // This will check cache first and return cached data if available
+      fetchData(params);
+      hasInitialData.current = true;
+    }
+  }, [leads.length, isFiltersInitialized, currentPage, sortField, sortDirection, searchQuery, fetchData]);
 
   // Keep track of the latest filters
   useEffect(() => {
@@ -147,16 +210,12 @@ const LeadsList: React.FC = () => {
       lastRequestParams.current = requestKey;
       lastRequestTime.current = now;
 
-      if (hasInitialData.current) {
-        backgroundRefresh(params);
-      } else {
-        fetchData(params);
-        hasInitialData.current = true;
-      }
+      fetchData(params);
+      hasInitialData.current = true;
     }, delay);
 
     return () => clearTimeout(handler);
-  }, [currentPage, sortField, sortDirection, searchQuery, leadFilters, fetchData, backgroundRefresh, isFiltersInitialized]);
+  }, [currentPage, sortField, sortDirection, searchQuery, leadFilters, fetchData, isFiltersInitialized]);
 
   const handleSort = useCallback((field: SortField) => {
     const newDirection = sortField === field && sortDirection === 'asc' ? 'desc' : 'asc';
@@ -168,8 +227,9 @@ const LeadsList: React.FC = () => {
   }, [sortField, sortDirection, updateState]);
 
   const handleLeadClick = useCallback((leadId: number) => {
+    savePageState();
     navigate(`/leads/${leadId}`);
-  }, [navigate]);
+  }, [navigate, savePageState]);
 
   const handleSearch = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -186,6 +246,8 @@ const LeadsList: React.FC = () => {
   const handleClearFilters = useCallback(() => {
     clearLeadFilters();
     clearFilters();
+    // Clear global cache to force fresh data fetch
+    // globalLeadsCache.current = []; // This line is removed
     // Force refresh data when filters are cleared
     if (hasInitialData.current) {
       const params = {
@@ -207,6 +269,8 @@ const LeadsList: React.FC = () => {
   const handleClearAll = useCallback(() => {
     clearLeadFilters();
     clearAll();
+    // Clear global cache to force fresh data fetch
+    // globalLeadsCache.current = []; // This line is removed
     // Force refresh data when all filters are cleared
     if (hasInitialData.current) {
       const params = {
@@ -238,10 +302,6 @@ const LeadsList: React.FC = () => {
     return sortDirection === 'asc' ? <ArrowUp size={16} /> : <ArrowDown size={16} />;
   };
 
-  // Only show loading on initial load, not on background refreshes
-  const showLoading = isDataLoading && !hasInitialData.current;
-  const showBackgroundLoading = isBackgroundLoading && hasInitialData.current;
-
   // Handle desktop filter changes
   const handleDesktopStageChange = useCallback((value: string) => {
     setDesktopStage(value);
@@ -265,10 +325,22 @@ const LeadsList: React.FC = () => {
     setLeadFilters(newFilters);
   }, [leadFilters, setLeadFilters]);
 
+  const handleDesktopSegmentChange = useCallback((value: string) => {
+    setDesktopSegment(value);
+    
+    // Update filters
+    const newFilters = leadFilters.filter(filter => filter.field !== 'segment');
+    if (value) {
+      newFilters.push({ field: 'segment', operator: '=', value });
+    }
+    setLeadFilters(newFilters);
+  }, [leadFilters, setLeadFilters]);
+
   // Sync desktop filters with leadFilters
   useEffect(() => {
     const stageFilter = leadFilters.find(filter => filter.field === 'stage');
     const tagsFilter = leadFilters.find(filter => filter.field === 'tags');
+    const segmentFilter = leadFilters.find(filter => filter.field === 'segment');
     
     if (stageFilter) {
       setDesktopStage(stageFilter.value as string);
@@ -281,6 +353,12 @@ const LeadsList: React.FC = () => {
     } else {
       setDesktopTags([]);
     }
+
+    if (segmentFilter) {
+      setDesktopSegment(segmentFilter.value as string);
+    } else {
+      setDesktopSegment('');
+    }
   }, [leadFilters]);
 
   return (
@@ -288,18 +366,45 @@ const LeadsList: React.FC = () => {
       <div className="p-2">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
           <div className="flex flex-col md:flex-row mt-4 md:mt-0 space-y-2 md:space-y-0 md:space-x-2 w-full">
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="Search leads..."
-                className="input pr-10"
-                value={searchQuery || ''}
-                onChange={handleSearch}
-              />
+            {/* Search and buttons row - always on same line */}
+            <div className="flex items-center space-x-2 w-full md:w-auto">
+              <div className="relative flex-1 md:w-64">
+                <input
+                  type="text"
+                  placeholder="Search leads..."
+                  className="input pr-10 w-full"
+                  value={searchQuery || ''}
+                  onChange={handleSearch}
+                />
+              </div>
+              
+              <div className="flex space-x-2 flex-shrink-0">
+                <button
+                  className="btn btn-outline flex items-center h-10 px-3"
+                  onClick={() => setIsFilterModalOpen(true)}
+                >
+                  <Filter size={16} />
+                </button>
+
+                <button
+                  className="btn btn-primary flex items-center h-10 px-3"
+                  onClick={() => setIsAddLeadModalOpen(true)}
+                >
+                  <Plus size={16} />
+                </button>
+              </div>
             </div>
             
             {/* Desktop-only filters in same line */}
             <div className="hidden md:flex md:space-x-2 md:flex-1">
+              <div className="flex-1 max-w-xs">
+                <Dropdown
+                  options={dropdownOptions.segment}
+                  value={desktopSegment}
+                  onChange={handleDesktopSegmentChange}
+                  placeholder="All Segments"
+                />
+              </div>
               <div className="flex-1 max-w-xs">
                 <Dropdown
                   options={dropdownOptions.stage}
@@ -316,22 +421,6 @@ const LeadsList: React.FC = () => {
                   placeholder="Select tags..."
                 />
               </div>
-            </div>
-            
-            <div className="flex space-x-2">
-              <button
-                className="btn btn-outline flex items-center h-10 px-3"
-                onClick={() => setIsFilterModalOpen(true)}
-              >
-                <Filter size={16} />
-              </button>
-
-              <button
-                className="btn btn-primary flex items-center h-10 px-3"
-                onClick={() => setIsAddLeadModalOpen(true)}
-              >
-                <Plus size={16} />
-              </button>
             </div>
           </div>
         </div>
@@ -358,16 +447,6 @@ const LeadsList: React.FC = () => {
               <X size={14} className="mr-1" />
               Clear All
             </button>
-          </div>
-        )}
-
-        {/* Background loading indicator */}
-        {showBackgroundLoading && (
-          <div className="mb-2 p-2 bg-blue-50 border border-blue-200 rounded-md">
-            <div className="flex items-center text-blue-700 text-sm">
-              <LoadingIndicator type="spinner" size="sm" />
-              <span className="ml-2">Refreshing data in background...</span>
-            </div>
           </div>
         )}
 
@@ -410,20 +489,14 @@ const LeadsList: React.FC = () => {
                   </th>
                   <th className="table-header">Tags</th>
                   <th className="table-header">Tasks</th>
-                  <th className="table-header">Property Type</th>
-                  <th className="table-header">Preferred Location</th>
+                  <th className="table-header">Type</th>
+                  <th className="table-header">Location</th>
                   <th className="table-header">Requirements</th>
                   <th className="table-header">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {showLoading ? (
-                  <tr>
-                    <td colSpan={10} className="px-6 py-4 text-center">
-                      <LoadingIndicator type="spinner" size="md" text="Loading leads..." />
-                    </td>
-                  </tr>
-                ) : leads.length === 0 ? (
+                {leads.length === 0 ? (
                   <tr>
                     <td
                       colSpan={10}
@@ -435,17 +508,17 @@ const LeadsList: React.FC = () => {
                     </td>
                   </tr>
                 ) : (
-                  leads.map((lead) => (
+                  leads.map((lead, index) => (
                     <tr
                       key={lead.id}
-                      className="hover:bg-gray-50 cursor-pointer transition-colors"
+                      className="hover:bg-gray-50 cursor-pointer transition-all duration-200 ease-in-out"
                       onClick={() => handleLeadClick(lead.id)}
                     >
                       <td className="table-cell font-medium">{lead.id}</td>
                       <td className="table-cell font-medium text-gray-700 truncate max-w-[150px]">
                         {lead.name}
                       </td>
-                      <td className="table-cell">{lead.budget} Lakh</td>
+                      <td className="table-cell">{lead.budget}L</td>
                       <td className="table-cell">
                         <Badge
                           label={lead.stage}
@@ -461,16 +534,16 @@ const LeadsList: React.FC = () => {
                         />
                       </td>
                       <td className="table-cell">
-                        <div className="flex flex-wrap gap-1">
-                          {lead.tags.slice(0, 2).map((tag: string, idx: number) => (
-                            <Badge key={idx} label={tag} color="gray" small />
-                          ))}
-                          {lead.tags.length > 2 && (
-                            <Badge
-                              label={`+${lead.tags.length - 2}`}
-                              color="gray"
-                              small
-                            />
+                        <div className="flex items-center space-x-1 truncate">
+                          {lead.tags.length > 0 ? (
+                            <>
+                              <span className="text-sm text-gray-600">
+                                {lead.tags.slice(0, 2).join(', ')}
+                                {lead.tags.length > 2 && ` +${lead.tags.length - 2}`}
+                              </span>
+                            </>
+                          ) : (
+                            <span className="text-sm text-gray-400">No tags</span>
                           )}
                         </div>
                       </td>
@@ -481,10 +554,17 @@ const LeadsList: React.FC = () => {
                         />
                       </td>
                       <td className="table-cell">
-                        <div className="flex flex-wrap gap-1">
-                          {lead.propertyType.map((type: string, idx: number) => (
-                            <Badge key={idx} label={type} color="gray" small />
-                          ))}
+                        <div className="flex items-center space-x-1 truncate">
+                          {lead.propertyType.length > 0 ? (
+                            <>
+                              <span className="text-sm text-gray-600">
+                                {lead.propertyType.slice(0, 2).join(', ')}
+                                {lead.propertyType.length > 2 && ` +${lead.propertyType.length - 2}`}
+                              </span>
+                            </>
+                          ) : (
+                            <span className="text-sm text-gray-400">Any</span>
+                          )}
                         </div>
                       </td>
                       <td className="table-cell truncate max-w-[200px]">
@@ -496,7 +576,7 @@ const LeadsList: React.FC = () => {
                       <td className="table-cell">
                         <div className="flex space-x-2">
                           <button
-                            className="p-1 text-gray-600 hover:text-blue-600 rounded-full hover:bg-blue-50"
+                            className="p-1 text-gray-600 hover:text-blue-600 rounded-full hover:bg-blue-50 transition-colors duration-200"
                             onClick={(e) => {
                               e.stopPropagation();
                               window.open(`tel:${lead.phone}`);
@@ -505,7 +585,7 @@ const LeadsList: React.FC = () => {
                             <Phone size={16} />
                           </button>
                           <button
-                            className="p-1 text-gray-600 hover:text-green-600 rounded-full hover:bg-green-50"
+                            className="p-1 text-gray-600 hover:text-green-600 rounded-full hover:bg-green-50 transition-colors duration-200"
                             onClick={(e) => {
                               e.stopPropagation();
                               window.open(`https://wa.me/${lead.phone}`);
@@ -522,23 +602,23 @@ const LeadsList: React.FC = () => {
             </table>
           </div>
 
-          {leads.length > 0 && (
+          {(leads.length > 0 || totalLeads > 0) && totalPages > 0 && (
             <div className="bg-gray-50 py-3 px-4 border-t border-gray-200 flex items-center justify-between">
               <div className="text-sm text-gray-600">
-                Page {currentPage}
+                Page {currentPage} of {totalPages} ({totalLeads} leads)
               </div>
               <div className="flex space-x-1">
                 <button
                   onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
-                  disabled={currentPage === 1 || showLoading}
-                  className="btn btn-outline py-1 px-3 disabled:opacity-50"
+                  disabled={currentPage === 1 || isDataLoading}
+                  className="btn btn-outline py-1 px-3 disabled:opacity-50 transition-opacity duration-200"
                 >
                   Previous
                 </button>
                 <button
-                  onClick={() => handlePageChange(currentPage + 1)}
-                  disabled={leads.length < 20 || showLoading}
-                  className="btn btn-outline py-1 px-3 disabled:opacity-50"
+                  onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
+                  disabled={currentPage === totalPages || isDataLoading}
+                  className="btn btn-outline py-1 px-3 disabled:opacity-50 transition-opacity duration-200"
                 >
                   Next
                 </button>

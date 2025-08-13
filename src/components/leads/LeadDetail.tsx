@@ -91,6 +91,11 @@ const LeadDetail: React.FC = () => {
     };
   }, [leadId, setActiveLeadId]);
 
+  // Scroll to top when component mounts
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
   if (!lead || !editedLead) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -263,14 +268,15 @@ const LeadDetail: React.FC = () => {
                         onClick={() => handleTodoClick(todo)}
                       >
                         <h3 className="font-medium">
-                          #{todo.id} - {todo.title}
+                          #{todo.id} - {todo.type}
                         </h3>
-                        <p className="text-sm text-gray-600 mt-1">
-                          {todo.description}
-                        </p>
+                        {todo.description && (
+                          <p className="text-sm text-gray-600 mt-1">
+                            {todo.description}
+                          </p>
+                        )}
                         <p className="text-sm text-gray-500 mt-1">
-                          {formatDateTime(todo.dateTime)}{' '}
-                          <Badge label={todo.type} color="blue" />
+                          {formatDateTime(todo.dateTime)} {todo.responseNote && <span>({todo.responseNote})</span>}
                         </p>
                       </div>
 
@@ -535,11 +541,13 @@ const LeadDetail: React.FC = () => {
                         onClick={() => handleTodoClick(todo)}
                       >
                         <h3 className="font-medium">
-                          {todo.title} <Badge label={todo.type} color="blue" />
+                          #{todo.id} - {todo.type} <Badge label={todo.type} color="blue" />
                         </h3>
-                        <p className="text-sm text-gray-600 mt-1">
-                          {todo.description}
-                        </p>
+                        {todo.description && (
+                          <p className="text-sm text-gray-600 mt-1">
+                            {todo.description}
+                          </p>
+                        )}
                         <p className="text-sm text-gray-500 mt-1">
                           {formatDateTime(todo.dateTime)}{' '}
                           <Badge

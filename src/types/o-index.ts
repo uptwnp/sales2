@@ -47,7 +47,16 @@ export type NextAction =
   | 'Meeting'
   | 'Other';
 
-export type Segment = 'A' | 'B' | 'C';
+export type Segment = 
+  | 'Panipat'
+  | 'Panipat Projects'
+  | 'Panipat Investors'
+  | 'Rohtak'
+  | 'Sonipat'
+  | 'Sigma'
+  | 'Trident'
+  | 'Godrej'
+  | 'M3M';
 
 export type Purpose = 'Self Use' | 'Investment' | 'Rental' | 'Resale' | 'Other';
 
@@ -92,7 +101,6 @@ export interface Todo {
   id: number;
   leadId: number;
   type: TodoType;
-  title: string;
   description?: string;
   responseNote?: string;
   status: TodoStatus;

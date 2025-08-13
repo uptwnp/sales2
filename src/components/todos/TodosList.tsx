@@ -15,7 +15,6 @@ import {
 } from 'lucide-react';
 import { useAppContext } from '../../contexts/AppContext';
 import { usePersistentState } from '../../hooks/usePersistentState';
-import { useOptimizedDataFetching } from '../../hooks/useOptimizedDataFetching';
 import { Todo, TodoType } from '../../types';
 import Badge from '../ui/Badge';
 import LoadingIndicator from '../ui/LoadingIndicator';
@@ -66,73 +65,43 @@ const TodosList: React.FC<TodosListProps> = ({
   const { state, updateState, clearFilters, clearSearch, clearAll, isStatePersisted } = usePersistentState(stateKey);
   const { currentPage, searchQuery, activeTab = 'today', filters: savedFilters } = state;
 
-  // Use optimized data fetching with caching
-  const {
-    data: cachedTodos,
-    isLoading: isDataLoading,
-    isBackgroundLoading,
-    fetchData,
-    backgroundRefresh
-  } = useOptimizedDataFetching<Todo[]>(
-    async (params) => {
-      await fetchTodos(params);
-      return getFilteredTodos();
-    },
-    { ttl: 2 * 60 * 1000, maxSize: 20 } // 2 minutes cache
-  );
-
-  const allTodos = cachedTodos || getFilteredTodos();
+  // Get todos directly from context
+  const contextTodos = getFilteredTodos();
+  const allTodos = contextTodos;
   const hasInitialData = React.useRef(false);
 
-  // Only fetch todos when component mounts or when defaultType changes
+  // Fetch todos when component mounts
   useEffect(() => {
     const params = {
       type: defaultType,
       page: currentPage,
       perPage: ITEMS_PER_PAGE,
-      sortOrder: 'desc',
+      sortOrder: 'desc' as const,
     };
 
+    // Always fetch data on first mount
     if (!hasInitialData.current) {
-      fetchData(params);
+      fetchTodos(params);
       hasInitialData.current = true;
-    } else {
-      backgroundRefresh(params);
     }
-  }, [defaultType, currentPage, fetchData, backgroundRefresh]);
+  }, [defaultType, currentPage, fetchTodos]);
 
-  // Fallback effect to ensure data is fetched if optimized fetching fails
-  useEffect(() => {
-    if (!hasInitialData.current && !allTodos?.length) {
-      // If no data after a delay, try fetching directly
-      const timer = setTimeout(() => {
-        if (!allTodos?.length) {
-          fetchTodos({
-            type: defaultType,
-            page: currentPage,
-            perPage: ITEMS_PER_PAGE,
-            sortOrder: 'desc',
-          });
-        }
-      }, 1000);
-
-      return () => clearTimeout(timer);
-    }
-  }, [allTodos, hasInitialData, fetchTodos, defaultType, currentPage]);
-
-  // Separate effect for when defaultType changes
+  // Fetch todos when defaultType changes
   useEffect(() => {
     if (defaultType && hasInitialData.current) {
       const params = {
         type: defaultType,
         page: 1,
         perPage: ITEMS_PER_PAGE,
-        sortOrder: 'desc',
+        sortOrder: 'desc' as const,
       };
-      fetchData(params);
+      fetchTodos(params);
       updateState({ currentPage: 1 });
     }
-  }, [defaultType, fetchData, updateState]);
+  }, [defaultType, fetchTodos, updateState]);
+
+  // Don't show empty state if we're still loading or haven't fetched data yet
+  const shouldShowEmptyState = hasInitialData.current && allTodos?.length === 0;
 
   const filteredTodos = (allTodos || []).filter((todo) => {
     // For activity view, only show activities
@@ -147,8 +116,8 @@ const TodosList: React.FC<TodosListProps> = ({
 
     const searchTerm = searchQuery || '';
     const matchesSearch =
-      todo.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      todo.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      
+      (todo.description || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       (getLeadById(todo.leadId)?.name || '').toLowerCase().includes(searchTerm.toLowerCase());
 
     if (!matchesSearch) return false;
@@ -159,15 +128,17 @@ const TodosList: React.FC<TodosListProps> = ({
 
     switch (activeTab) {
       case 'today':
-        return isToday(todoDate);
+        return isToday(todoDate) && todo.status !== 'Completed';
       case 'upcoming':
-        return isFuture(todoDate) && !isToday(todoDate);
+        return isFuture(todoDate) && !isToday(todoDate) && todo.status !== 'Completed';
       case 'overdue':
-        return isPast(todoDate) && !isToday(todoDate);
+        return isPast(todoDate) && !isToday(todoDate) && todo.status !== 'Completed';
       case 'all':
-        return true;
+        return todo.status !== 'Completed';
+      case 'completed':
+        return todo.status === 'Completed';
       default:
-        return true;
+        return todo.status !== 'Completed';
     }
   });
 
@@ -314,9 +285,8 @@ const TodosList: React.FC<TodosListProps> = ({
     return '...';
   };
 
-  // Only show loading on initial load, not on background refreshes
-  const showLoading = isDataLoading && !hasInitialData.current;
-  const showBackgroundLoading = isBackgroundLoading && hasInitialData.current;
+  // Only show loading on initial load
+  const showLoading = !hasInitialData.current;
 
   const paginatedTodos = getPaginatedTodos();
   const totalTodos = getTodosByTab().length;
@@ -325,27 +295,68 @@ const TodosList: React.FC<TodosListProps> = ({
   // Ensure we always have a valid array to work with
   const safePaginatedTodos = paginatedTodos || [];
 
-  // Debug logging
-  console.log('TodosList Debug:', {
-    defaultType,
-    allTodosLength: allTodos?.length || 0,
-    filteredTodosLength: filteredTodos.length,
-    paginatedTodosLength: safePaginatedTodos.length,
-    showLoading,
-    showBackgroundLoading,
-    hasInitialData: hasInitialData.current
-  });
+  // Show loading state if we're still fetching initial data
+  if (showLoading) {
+    return (
+      <div className="p-2">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
+          <div className="flex items-center space-x-4">
+            <div className="flex space-x-1 bg-gray-100 rounded-lg p-1">
+              {['today', 'upcoming', 'overdue', 'all', 'completed'].map((tab) => (
+                <button
+                  key={tab}
+                  disabled
+                  className="px-3 py-1 rounded-md text-sm font-medium text-gray-400 cursor-not-allowed"
+                >
+                  {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="flex mt-4 md:mt-0 space-x-2">
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Search tasks..."
+                className="input pr-10"
+                disabled
+              />
+            </div>
+            <button
+              className="btn btn-outline flex items-center"
+              disabled
+            >
+              <Filter size={16} />
+            </button>
+            {showAddButton && (
+              <button
+                className="btn btn-primary"
+                disabled
+              >
+                <Plus size={16} />
+              </button>
+            )}
+          </div>
+        </div>
+        <div className="bg-white rounded-lg shadow overflow-hidden">
+          <div className="px-6 py-12 text-center">
+            <LoadingIndicator type="spinner" size="lg" text="Loading tasks..." />
+            <p className="mt-4 text-gray-500 text-sm">Please wait while we fetch your tasks...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
       <div className="p-2">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
           <div className="flex items-center space-x-4">
-            <h1 className="text-2xl font-bold text-gray-900">{title}</h1>
             
             {/* Tab Navigation */}
             <div className="flex space-x-1 bg-gray-100 rounded-lg p-1">
-              {['today', 'upcoming', 'overdue', 'all'].map((tab) => (
+              {['today', 'upcoming', 'overdue', 'all', 'completed'].map((tab) => (
                 <button
                   key={tab}
                   onClick={() => handleTabChange(tab as typeof activeTab)}
@@ -419,14 +430,7 @@ const TodosList: React.FC<TodosListProps> = ({
         )}
 
         {/* Background loading indicator */}
-        {showBackgroundLoading && (
-          <div className="mb-2 p-2 bg-blue-50 border border-blue-200 rounded-md">
-            <div className="flex items-center text-blue-700 text-sm">
-              <LoadingIndicator type="spinner" size="sm" />
-              <span className="ml-2">Refreshing tasks in background...</span>
-            </div>
-          </div>
-        )}
+        {/* showBackgroundLoading is removed, so this block is removed */}
 
         <div className="bg-white rounded-lg shadow overflow-hidden">
           <div className="overflow-x-auto">
@@ -442,13 +446,7 @@ const TodosList: React.FC<TodosListProps> = ({
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {showLoading ? (
-                  <tr>
-                    <td colSpan={6} className="px-6 py-4 text-center">
-                      <LoadingIndicator type="spinner" size="md" text="Loading tasks..." />
-                    </td>
-                  </tr>
-                ) : safePaginatedTodos.length === 0 ? (
+                {shouldShowEmptyState ? (
                   <tr>
                     <td
                       colSpan={6}
@@ -463,15 +461,13 @@ const TodosList: React.FC<TodosListProps> = ({
                   safePaginatedTodos.map((todo) => (
                     <tr
                       key={todo.id}
-                      className="hover:bg-gray-50 transition-colors"
+                      className="hover:bg-gray-50 transition-colors cursor-pointer"
+                      onClick={() => handleTodoClick(todo)}
                     >
                       <td className="table-cell">
                         <div className="flex flex-col">
-                          <span className="font-medium text-gray-900">
-                            {todo.title}
-                          </span>
                           {todo.description && (
-                            <span className="text-sm text-gray-600 truncate max-w-[300px]">
+                            <span className="font-medium text-gray-900 truncate max-w-[300px]">
                               {todo.description}
                             </span>
                           )}
@@ -479,7 +475,10 @@ const TodosList: React.FC<TodosListProps> = ({
                       </td>
                       <td className="table-cell">
                         <button
-                          onClick={() => handleLeadClick(todo.leadId)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleLeadClick(todo.leadId);
+                          }}
                           className={`font-medium ${
                             failedLeads.has(todo.leadId) 
                               ? 'text-red-600 hover:text-red-800' 
@@ -539,41 +538,38 @@ const TodosList: React.FC<TodosListProps> = ({
                       </td>
                       <td className="table-cell">
                         <div className="flex space-x-2">
-                          <button
-                            className="p-1 text-gray-600 hover:text-blue-600 rounded-full hover:bg-blue-50"
-                            onClick={() => handleTodoClick(todo)}
-                            title="View Details"
-                          >
-                            <CalendarDays size={16} />
-                          </button>
+                         
                           <button
                             className="p-1 text-gray-600 hover:text-green-600 rounded-full hover:bg-green-50"
-                            onClick={() => handleTodoAction(todo, 'complete')}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleTodoAction(todo, 'complete');
+                            }}
                             title="Complete"
                           >
                             <CheckCircle size={16} />
                           </button>
                           <button
                             className="p-1 text-gray-600 hover:text-red-600 rounded-full hover:bg-red-50"
-                            onClick={() => handleTodoAction(todo, 'cancel')}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleTodoAction(todo, 'cancel');
+                            }}
                             title="Cancel"
                           >
                             <XCircle size={16} />
                           </button>
                           <button
                             className="p-1 text-gray-600 hover:text-orange-600 rounded-full hover:bg-orange-50"
-                            onClick={() => handleTodoAction(todo, 'reschedule')}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleTodoAction(todo, 'reschedule');
+                            }}
                             title="Reschedule"
                           >
                             <RotateCcw size={16} />
                           </button>
-                          <button
-                            className="p-1 text-gray-600 hover:text-red-600 rounded-full hover:bg-red-50"
-                            onClick={() => handleDeleteTodo(todo.id)}
-                            title="Delete"
-                          >
-                            <Trash2 size={16} />
-                          </button>
+                         
                         </div>
                       </td>
                     </tr>

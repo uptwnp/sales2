@@ -294,7 +294,7 @@ const Calendar: React.FC = () => {
                               </span>
                             </div>
                             <div className="truncate text-xs text-gray-800 mb-2">
-                              {todo.title}
+                              {todo.description || todo.type}
                             </div>
                             <Badge
                               label={todo.type}
@@ -357,7 +357,7 @@ const Calendar: React.FC = () => {
                         </div>
 
                         <h4 className="font-semibold text-base text-gray-800">
-                          {todo.title}
+                          {todo.description || todo.type}
                         </h4>
 
                         {todo.description && (

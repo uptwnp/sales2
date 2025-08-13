@@ -56,6 +56,9 @@ export function useOptimizedDataFetching<T>(
     
     const requestKey = createRequestKey(params);
     
+    // Store the params for refresh operations
+    lastParams.current = params;
+    
     // Check if there's already an active request
     if (activeRequests.current.has(requestKey)) {
       return activeRequests.current.get(requestKey)!;
@@ -132,13 +135,6 @@ export function useOptimizedDataFetching<T>(
     
     return fetchData(paramsToUse, { background: true });
   }, [fetchData]);
-
-  // Store last params for refresh operations
-  useEffect(() => {
-    if (data) {
-      lastParams.current = lastParams.current;
-    }
-  }, [data]);
 
   return {
     data,
