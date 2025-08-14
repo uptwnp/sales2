@@ -384,14 +384,7 @@ const TodosList: React.FC<TodosListProps> = ({
             >
               <Filter size={16} />
             </button>
-            {showAddButton && (
-              <button
-                className="btn btn-primary"
-                onClick={() => setIsAddTodoModalOpen(true)}
-              >
-                <Plus size={16} />
-              </button>
-            )}
+            {/* Add button removed per request */}
           </div>
         </div>
 

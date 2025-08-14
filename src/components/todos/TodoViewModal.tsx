@@ -59,33 +59,25 @@ const TodoViewModal: React.FC<TodoViewModalProps> = ({
     setEditedTodo((prev) => prev ? ({ ...prev, [name]: value }) : null);
   };
 
-  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { value } = e.target;
+  const handleDateChange = (value: string) => {
     if (!editedTodo) return;
-    
     const currentDateTime = new Date(editedTodo.dateTime);
     const [year, month, day] = value.split('-').map(Number);
-
     currentDateTime.setFullYear(year);
     currentDateTime.setMonth(month - 1);
     currentDateTime.setDate(day);
-
     setEditedTodo((prev) => prev ? ({
       ...prev,
       dateTime: currentDateTime.toISOString(),
     }) : null);
   };
 
-  const handleTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { value } = e.target;
+  const handleTimeChange = (value: string) => {
     if (!editedTodo) return;
-    
     const currentDateTime = new Date(editedTodo.dateTime);
     const [hours, minutes] = value.split(':').map(Number);
-
     currentDateTime.setHours(hours);
     currentDateTime.setMinutes(minutes);
-
     setEditedTodo((prev) => prev ? ({
       ...prev,
       dateTime: currentDateTime.toISOString(),
@@ -125,27 +117,26 @@ const TodoViewModal: React.FC<TodoViewModalProps> = ({
       onClose={onClose}
       title={
         isEditing
-          ? 'Edit ' + editedTodo.id + editedTodo.type
-          : +editedTodo.id + '. ' + editedTodo.type + ' Details'
+          ? 'Edit ' + '#'+ editedTodo.id
+          : +editedTodo.id + ' - ' + editedTodo.type + ' Details'
       }
       size="lg"
     >
       <div className="space-y-4">
         <div>
-          <div className=" items-center justify-between">
-            <div className=" items-center space-x-2">
-              {isEditing ? (
-                <Dropdown
-                  options={dropdownOptions.todoType}
-                  value={editedTodo.type}
-                  onChange={(value) => handleDropdownChange('type', value)}
-                  placeholder="Select type"
-                />
-              ) : (
-                <h3 className="text-lg font-medium mt-2">{editedTodo.type}</h3>
-              )}
-            </div>
-          </div>
+        <div className="items-center justify-between">
+  <div className="items-center space-x-2">
+    {isEditing ? (
+      <Dropdown
+        options={dropdownOptions.todoType}
+        value={editedTodo.type}
+        onChange={(value) => handleDropdownChange('type', value)}
+        placeholder="Select type"
+      />
+    ) : null}
+  </div>
+</div>
+
 
           {isEditing ? (
             <>
