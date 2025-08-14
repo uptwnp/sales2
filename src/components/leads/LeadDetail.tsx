@@ -30,7 +30,7 @@ const LeadDetail: React.FC = () => {
   const leadId = id ? parseInt(id) : 0;
   const navigate = useNavigate();
 
-  const { getLeadById, getTodosByLeadId, updateLead, setActiveLeadId, fetchSingleLead } =
+  const { getLeadById, getTodosByLeadId, updateLead, setActiveLeadId, fetchSingleLead, isLoading } =
     useAppContext();
 
   const lead = getLeadById(leadId);
@@ -40,6 +40,7 @@ const LeadDetail: React.FC = () => {
   const [isAddActivityModalOpen, setIsAddActivityModalOpen] = useState(false);
   const [editedLead, setEditedLead] = useState<Lead | null>(null);
   const [selectedTodo, setSelectedTodo] = useState<Todo | null>(null);
+  const [isFetchingLead, setIsFetchingLead] = useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [isActionModalOpen, setIsActionModalOpen] = useState(false);
   const [actionType, setActionType] = useState<
@@ -62,10 +63,13 @@ const LeadDetail: React.FC = () => {
 
   // Fetch lead if not found in current state
   useEffect(() => {
-    if (leadId && !lead) {
-      fetchSingleLead(leadId);
+    if (leadId && !lead && !isFetchingLead) {
+      setIsFetchingLead(true);
+      fetchSingleLead(leadId).finally(() => {
+        setIsFetchingLead(false);
+      });
     }
-  }, [leadId, lead, fetchSingleLead]);
+  }, [leadId, lead, fetchSingleLead, isFetchingLead]);
 
   useEffect(() => {
     if (lead) {
@@ -96,6 +100,21 @@ const LeadDetail: React.FC = () => {
     window.scrollTo(0, 0);
   }, []);
 
+  // Show loading state while fetching lead data
+  if ((isLoading || isFetchingLead) && !lead) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <h2 className="text-xl font-semibold text-gray-700">
+            Loading lead...
+          </h2>
+        </div>
+      </div>
+    );
+  }
+
+  // Show not found only after loading is complete and lead is still not found
   if (!lead || !editedLead) {
     return (
       <div className="flex items-center justify-center h-screen">
