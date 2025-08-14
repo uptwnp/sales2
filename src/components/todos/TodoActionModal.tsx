@@ -150,7 +150,7 @@ interface TodoActionModalProps {
     'Reschedule Task';
 
   const buttonText = 
-    actionType === 'complete' ? 'Mark as Complete' :
+    actionType === 'complete' ? 'Done' :
     actionType === 'cancel' ? 'Cancel Task' :
     actionType === 'reopen' ? 'Reopen Task' :
     'Reschedule';
