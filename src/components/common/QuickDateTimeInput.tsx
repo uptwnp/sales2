@@ -224,12 +224,12 @@ const QuickDateTimeInput: React.FC<QuickDateTimeInputProps> = ({
             key={option.value}
             type="button"
             onClick={() => handleQuickSelect(option.value)}
-            className={`px-3 py-2 text-xs font-medium rounded-md border transition-colors whitespace-nowrap flex-shrink-0 ${
+            className={`px-3 py-2 text-xs font-medium rounded-md transition-colors whitespace-nowrap flex-shrink-0 ${
               selectedOption === option.value
-                ? 'border-blue-500 bg-blue-100 text-blue-800 ring-2 ring-blue-500 ring-offset-1'
+                ? 'bg-blue-100 text-blue-800 border-2 border-blue-500'
                 : option.value === 'custom'
-                ? 'border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100 focus:ring-2 focus:ring-blue-500 focus:ring-offset-1'
-                : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400 focus:ring-2 focus:ring-blue-500 focus:ring-offset-1'
+                ? 'bg-blue-50 text-blue-700 hover:bg-blue-100 border-2 border-blue-300 hover:border-blue-400'
+                : 'bg-white text-gray-700 hover:bg-gray-50 border-2 border-gray-300 hover:border-gray-400'
             }`}
           >
             {option.label}

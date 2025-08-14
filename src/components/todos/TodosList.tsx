@@ -1,17 +1,16 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { format, isToday, isPast, isFuture } from 'date-fns';
+import { isToday, isPast, isFuture } from 'date-fns';
+import { formatRelativeTime } from '../../utils';
 import { 
   Plus, 
   Filter, 
   Calendar, 
-  CalendarDays, 
   CheckCircle, 
   XCircle, 
   RotateCcw,
   Loader2,
-  X,
-  Trash2
+  X
 } from 'lucide-react';
 import { useAppContext } from '../../contexts/AppContext';
 import { usePersistentState } from '../../hooks/usePersistentState';
@@ -34,7 +33,6 @@ const ITEMS_PER_PAGE = 10;
 
 const TodosList: React.FC<TodosListProps> = ({
   defaultType,
-  title = 'Tasks',
   showAddButton = true,
   isActivityView = false,
 }) => {
@@ -44,7 +42,6 @@ const TodosList: React.FC<TodosListProps> = ({
     todoFilters,
     clearTodoFilters,
     removeTodoFilter,
-    deleteTodo,
     fetchTodos,
     fetchSingleLead,
   } = useAppContext();
@@ -62,8 +59,8 @@ const TodosList: React.FC<TodosListProps> = ({
 
   // Use persistent state for todos section with a unique key based on the type
   const stateKey = `todos_${defaultType || 'all'}`;
-  const { state, updateState, clearFilters, clearSearch, clearAll, isStatePersisted } = usePersistentState(stateKey);
-  const { currentPage, searchQuery, activeTab = 'today', filters: savedFilters } = state;
+  const { state, updateState, clearFilters, clearAll } = usePersistentState(stateKey);
+  const { currentPage, searchQuery, activeTab = 'today' } = state;
 
   // Get todos directly from context
   const contextTodos = getFilteredTodos();
@@ -182,9 +179,9 @@ const TodosList: React.FC<TodosListProps> = ({
     setIsActionModalOpen(true);
   }, []);
 
-  const handleDeleteTodo = useCallback((todoId: number) => {
-    deleteTodo(todoId);
-  }, [deleteTodo]);
+  // const handleDeleteTodo = useCallback((todoId: number) => {
+  //   deleteTodo(todoId);
+  // }, [deleteTodo]);
 
   const handleLeadClick = useCallback((leadId: number) => {
     navigate(`/leads/${leadId}`);
@@ -195,9 +192,9 @@ const TodosList: React.FC<TodosListProps> = ({
     clearFilters();
   }, [clearTodoFilters, clearFilters]);
 
-  const handleClearSearch = useCallback(() => {
-    updateState({ searchQuery: '', currentPage: 1 });
-  }, [updateState]);
+  // const handleClearSearch = useCallback(() => {
+  //   updateState({ searchQuery: '', currentPage: 1 });
+  // }, [updateState]);
 
   const handleClearAll = useCallback(() => {
     clearTodoFilters();
@@ -205,8 +202,7 @@ const TodosList: React.FC<TodosListProps> = ({
   }, [clearTodoFilters, clearAll]);
 
   const formatDateTime = (dateString: string) => {
-    const date = new Date(dateString);
-    return format(date, 'MMM dd, yyyy HH:mm');
+    return formatRelativeTime(dateString);
   };
 
   const getLeadName = (leadId: number) => {
@@ -433,23 +429,26 @@ const TodosList: React.FC<TodosListProps> = ({
         {/* showBackgroundLoading is removed, so this block is removed */}
 
         <div className="bg-white rounded-lg shadow overflow-hidden">
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto scrollbar-hide">
             <table className="min-w-full divide-y divide-gray-200">
               <thead>
                 <tr className="bg-gray-50">
-                  <th className="table-header">Task</th>
-                  <th className="table-header">Lead</th>
-                  <th className="table-header">Type</th>
-                  <th className="table-header">Status</th>
-                  <th className="table-header">Date & Time</th>
-                  <th className="table-header">Actions</th>
+                  <th className="table-header min-w-[60px] md:min-w-[80px]">Task ID</th>
+                  <th className="table-header min-w-[100px] md:min-w-[120px]">Task Type</th>
+                  <th className="table-header min-w-[150px] md:min-w-[180px]">Lead</th>
+                  <th className="table-header min-w-[200px] md:min-w-[250px]">Description</th>
+                  <th className="table-header min-w-[140px] md:min-w-[160px]">Date & Time</th>
+                  <th className="table-header min-w-[80px] md:min-w-[100px]">Status</th>
+                  <th className="table-header min-w-[100px] md:min-w-[120px]">Actions</th>
+                  <th className="table-header min-w-[150px] md:min-w-[200px]">Response Text</th>
+                  <th className="table-header min-w-[120px] md:min-w-[150px]">Participants</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {shouldShowEmptyState ? (
                   <tr>
                     <td
-                      colSpan={6}
+                      colSpan={9}
                       className="px-6 py-8 text-center text-gray-500"
                     >
                       {searchQuery
@@ -465,45 +464,9 @@ const TodosList: React.FC<TodosListProps> = ({
                       onClick={() => handleTodoClick(todo)}
                     >
                       <td className="table-cell">
-                        <div className="flex flex-col">
-                          {todo.description && (
-                            <span className="font-medium text-gray-900 truncate max-w-[300px]">
-                              {todo.description}
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="table-cell">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleLeadClick(todo.leadId);
-                          }}
-                          className={`font-medium ${
-                            failedLeads.has(todo.leadId) 
-                              ? 'text-red-600 hover:text-red-800' 
-                              : 'text-blue-600 hover:text-blue-800'
-                          }`}
-                        >
-                          {fetchingLeads.has(todo.leadId) ? (
-                            <span className="flex items-center">
-                              <Loader2 className="mr-1 animate-spin" size={14} />
-                              Loading...
-                            </span>
-                          ) : (
-                            getLeadName(todo.leadId)
-                          )}
-                        </button>
-                        <div className="text-sm text-gray-500">
-                          Budget: {fetchingLeads.has(todo.leadId) ? (
-                            <span className="flex items-center">
-                              <Loader2 className="mr-1 animate-spin" size={12} />
-                              Loading...
-                            </span>
-                          ) : (
-                            typeof getLeadBudget(todo.leadId) === 'number' ? `${getLeadBudget(todo.leadId)} Lakh` : getLeadBudget(todo.leadId)
-                          )}
-                        </div>
+                        <span className="text-xs font-medium text-gray-600">
+                          #{todo.id}
+                        </span>
                       </td>
                       <td className="table-cell">
                         <Badge
@@ -518,6 +481,45 @@ const TodosList: React.FC<TodosListProps> = ({
                         />
                       </td>
                       <td className="table-cell">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleLeadClick(todo.leadId);
+                          }}
+                          className={`text-sm font-medium text-left hover:underline ${
+                            failedLeads.has(todo.leadId) 
+                              ? 'text-red-600 hover:text-red-800' 
+                              : 'text-blue-600 hover:text-blue-800'
+                          }`}
+                        >
+                          {fetchingLeads.has(todo.leadId) ? (
+                            <span className="flex items-center">
+                              <Loader2 className="mr-1 animate-spin" size={12} />
+                              Loading...
+                            </span>
+                          ) : (
+                            `${todo.leadId}. ${getLeadName(todo.leadId)} (${typeof getLeadBudget(todo.leadId) === 'number' ? `${getLeadBudget(todo.leadId)}L` : getLeadBudget(todo.leadId)})`
+                          )}
+                        </button>
+                      </td>
+                      <td className="table-cell">
+                        <div className="flex flex-col">
+                          {todo.description && (
+                            <span className="font-normal text-gray-900 truncate max-w-[180px] md:max-w-[230px]" title={todo.description}>
+                              {todo.description}
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="table-cell">
+                        <div className="flex items-center space-x-1">
+                          <Calendar size={14} className="text-gray-400 flex-shrink-0" />
+                          <span className="text-xs text-gray-600 truncate">
+                            {formatDateTime(todo.dateTime)}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="table-cell">
                         <Badge
                           label={todo.status}
                           color={
@@ -529,15 +531,7 @@ const TodosList: React.FC<TodosListProps> = ({
                         />
                       </td>
                       <td className="table-cell">
-                        <div className="flex items-center space-x-2">
-                          <Calendar size={16} className="text-gray-400" />
-                          <span className="text-sm text-gray-600">
-                            {formatDateTime(todo.dateTime)}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="table-cell">
-                        <div className="flex space-x-2">
+                        <div className="flex space-x-1">
                          
                           <button
                             className="p-1 text-gray-600 hover:text-green-600 rounded-full hover:bg-green-50"
@@ -547,7 +541,7 @@ const TodosList: React.FC<TodosListProps> = ({
                             }}
                             title="Complete"
                           >
-                            <CheckCircle size={16} />
+                            <CheckCircle size={14} />
                           </button>
                           <button
                             className="p-1 text-gray-600 hover:text-red-600 rounded-full hover:bg-red-50"
@@ -557,7 +551,7 @@ const TodosList: React.FC<TodosListProps> = ({
                             }}
                             title="Cancel"
                           >
-                            <XCircle size={16} />
+                            <XCircle size={14} />
                           </button>
                           <button
                             className="p-1 text-gray-600 hover:text-orange-600 rounded-full hover:bg-orange-50"
@@ -567,9 +561,40 @@ const TodosList: React.FC<TodosListProps> = ({
                             }}
                             title="Reschedule"
                           >
-                            <RotateCcw size={16} />
+                            <RotateCcw size={14} />
                           </button>
                          
+                        </div>
+                      </td>
+                      <td className="table-cell">
+                        <div className="flex flex-col">
+                          {todo.responseNote && (
+                            <span className="text-xs text-gray-600 truncate max-w-[140px] md:max-w-[180px]" title={todo.responseNote}>
+                              {todo.responseNote}
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="table-cell">
+                        <div className="flex flex-wrap gap-1">
+                          {todo.participants && todo.participants.length > 0 ? (
+                            todo.participants.slice(0, 2).map((participant, index) => (
+                              <span
+                                key={index}
+                                className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+                                title={participant}
+                              >
+                                {participant}
+                              </span>
+                            ))
+                          ) : (
+                            <span className="text-xs text-gray-400">-</span>
+                          )}
+                          {todo.participants && todo.participants.length > 2 && (
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                              +{todo.participants.length - 2}
+                            </span>
+                          )}
                         </div>
                       </td>
                     </tr>

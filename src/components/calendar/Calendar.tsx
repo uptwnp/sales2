@@ -23,6 +23,7 @@ import {
   CheckCircle,
   XCircle,
   RotateCcw,
+    CalendarClock,
   PhoneCall,
   Users2,
   ChevronLeft,
@@ -356,9 +357,7 @@ const Calendar: React.FC = () => {
                           )}
                         </div>
 
-                        <h4 className="font-semibold text-base text-gray-800">
-                          {todo.description || todo.type}
-                        </h4>
+                      
 
                         {todo.description && (
                           <p className="text-sm text-gray-600">
@@ -396,6 +395,13 @@ const Calendar: React.FC = () => {
                               title="Mark as Completed"
                             >
                               <CheckCircle size={18} />
+                            </button>
+                            <button
+                              className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-full"
+                              onClick={() => handleTodoAction(todo, 'reschedule')}
+                              title="Reschedule Task"
+                            >
+                              <CalendarClock size={18} />
                             </button>
                             <button
                               className="p-1.5 text-red-600 hover:bg-red-50 rounded-full"
