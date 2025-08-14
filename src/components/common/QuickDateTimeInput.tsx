@@ -218,13 +218,13 @@ const QuickDateTimeInput: React.FC<QuickDateTimeInputProps> = ({
       <label className="block text-sm font-medium text-gray-700 mb-2">{label}</label>
       
       {/* Quick Selection Buttons */}
-      <div className="grid grid-cols-3 gap-2 mb-3">
+      <div className="flex gap-2 mb-3 overflow-x-auto scrollbar-hide pb-1">
         {options.map((option) => (
           <button
             key={option.value}
             type="button"
             onClick={() => handleQuickSelect(option.value)}
-            className={`px-3 py-2 text-xs font-medium rounded-md border transition-colors ${
+            className={`px-3 py-2 text-xs font-medium rounded-md border transition-colors whitespace-nowrap flex-shrink-0 ${
               selectedOption === option.value
                 ? 'border-blue-500 bg-blue-100 text-blue-800 ring-2 ring-blue-500 ring-offset-1'
                 : option.value === 'custom'

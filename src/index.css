@@ -102,7 +102,7 @@
   }
 
   .table-cell {
-    @apply px-3 py-4 text-sm text-gray-500 border-b border-gray-200;
+    @apply px-3 py-2 text-sm text-gray-500 border-b border-gray-200;
   }
 }
 
@@ -116,4 +116,14 @@
   100% {
     width: 100%;
   }
+}
+
+/* Hide scrollbar for webkit browsers */
+.scrollbar-hide {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;  /* Chrome, Safari and Opera */
 }

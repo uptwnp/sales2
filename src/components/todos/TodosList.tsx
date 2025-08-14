@@ -300,13 +300,13 @@ const TodosList: React.FC<TodosListProps> = ({
     return (
       <div className="p-2">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
-          <div className="flex items-center space-x-4">
-            <div className="flex space-x-1 bg-gray-100 rounded-lg p-1">
+          <div className="flex items-center space-x-4 w-full md:w-auto">
+            <div className="flex space-x-1 bg-gray-100 rounded-lg p-1 overflow-x-auto scrollbar-hide min-w-0 flex-1 md:flex-none">
               {['today', 'upcoming', 'overdue', 'all', 'completed'].map((tab) => (
                 <button
                   key={tab}
                   disabled
-                  className="px-3 py-1 rounded-md text-sm font-medium text-gray-400 cursor-not-allowed"
+                  className="px-3 py-1 rounded-md text-sm font-medium text-gray-400 cursor-not-allowed whitespace-nowrap flex-shrink-0"
                 >
                   {tab.charAt(0).toUpperCase() + tab.slice(1)}
                 </button>
@@ -352,15 +352,15 @@ const TodosList: React.FC<TodosListProps> = ({
     <>
       <div className="p-2">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-4 w-full md:w-auto">
             
             {/* Tab Navigation */}
-            <div className="flex space-x-1 bg-gray-100 rounded-lg p-1">
+            <div className="flex space-x-1 bg-gray-100 rounded-lg p-1 overflow-x-auto scrollbar-hide min-w-0 flex-1 md:flex-none">
               {['today', 'upcoming', 'overdue', 'all', 'completed'].map((tab) => (
                 <button
                   key={tab}
                   onClick={() => handleTabChange(tab as typeof activeTab)}
-                  className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                  className={`px-3 py-1 rounded-md text-sm font-medium transition-colors whitespace-nowrap flex-shrink-0 ${
                     activeTab === tab
                       ? 'bg-white text-gray-900 shadow-sm'
                       : 'text-gray-600 hover:text-gray-900'
