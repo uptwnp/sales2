@@ -27,6 +27,7 @@ const personOptions: Option[] = [
   "Other",
   "Deepak",
   "Komal",
+  "Gulshan",
 ].map(createOption);
 
 // === Reusable Tags ===
@@ -39,6 +40,16 @@ const commonTags: Option[] = [
   "Serious Buyer",
   "Trident",
   "Godrej",
+  "Sigma",
+  "Nysa Residential",
+  "Palm Drive",
+  "M3M",
+  "Crown",
+  "Dealer",
+  "Affiliate",
+  "Primary Sale Investor",
+  "Urgent Sale Investor",
+  "Property Dealer",
   "Need Loan",
   "VIP",
   "Investor",
@@ -79,6 +90,7 @@ export const stageOptions: Option[] = [
   "Neg - Req Closed",
   "Neg - Invalid",
   "Neg - Lost",
+  "Neg - Useless",
   "Other",
 ].map(createOption);
 
@@ -95,22 +107,33 @@ export const priorityOptions: Option[] = [
 
 // === Simple Uniform Options ===
 export const sourceOptions = [
-  "Instagram",
-  "Referral",
-  "GMB",
-  "Website",
-  "Website m3m",
-  "Website trident",
-  "Social Media",
-  "Cold Call",
-  "Olx",
-  "Facebook",
-  "Offline Meet",
-  "Property DB",
-  "Shoping",
-  "Other",
-  "Groups",
-  "Other",
+"Organic Social Media",
+"Youtube",
+"Referral",
+"GMB Others",
+"Website Others",
+"Our GMB",
+"Website",
+"M3M",
+"Trident",
+"Dealer Network",
+"Social Media",
+"Cold Call",
+"Olx",
+"Offline Meet",
+"Property DB",
+"Shoping",
+"Other",
+"Groups",
+"Ads Display",
+"Ads Search",
+"Many Chats",
+"Listings",
+"Physical World",
+"Holdings",
+"Other Organic Display",
+"Other Organic Search"
+
 ].map(createOption);
 
 export const mediumOptions = ["Post", "Story", "Reel", "Direct", "Other"].map(
@@ -170,10 +193,11 @@ export const todoStatusOptions: Option[] = [
 
 export const segmentOptions: Option[] = [
   "Panipat",
-  "Panipat - Projects",
+  "Panipat Projects",
+  "Panipat Investors",
   "Rohtak",
   "Sonipat",
-  "Panipat Investors",
+  "M3M",
 ].map(createOption);
 
 // === Tag Grouped Options ===
@@ -185,6 +209,7 @@ export const tagOptions = {
     "Z - Sector 24",
     "Z - Tehsil Camp",
     "Z - Toll",
+    "Projects",
     "Asandh Road",
     "Babail Naka",
     "Babail Road",

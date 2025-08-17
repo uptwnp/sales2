@@ -29,7 +29,6 @@ const TodoFilterModal: React.FC<TodoFilterModalProps> = ({
     { value: 'type', label: 'Type' },
     { value: 'status', label: 'Status' },
     { value: 'leadId', label: 'Lead ID' },
-    { value: 'title', label: 'Title' },
     { value: 'description', label: 'Description' },
   ];
 
@@ -51,7 +50,7 @@ const TodoFilterModal: React.FC<TodoFilterModalProps> = ({
   };
 
   const isLeadIdField = field === 'leadId';
-  const isTextField = field === 'title' || field === 'description';
+  const isTextField = field === 'description';
   const showValueDropdown = !isLeadIdField && !isTextField && field !== '';
 
   const addFilter = () => {

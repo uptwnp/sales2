@@ -23,6 +23,7 @@ import {
   getOptionByValue,
   getApiValue,
 } from "../data/options";
+import { useOptimizedDataFetching } from "../hooks/useOptimizedDataFetching";
 
 interface ApiLead {
   id: string;
@@ -65,7 +66,6 @@ interface ApiTask {
   id: string;
   lead_id: string;
   type: string;
-  title: string;
   description: string | null;
   response_note: string | null;
   status: string;
@@ -74,6 +74,13 @@ interface ApiTask {
   created_at: string;
   updated_at: string;
   lead: ApiLead;
+}
+
+interface ApiResponse<T> {
+  status: string;
+  data: T;
+  total?: number;
+  message?: string;
 }
 
 interface AppContextType {
@@ -112,13 +119,15 @@ interface AppContextType {
     sortOrder?: "asc" | "desc";
     search?: string;
     currentFilters?: FilterOption[];
-  }) => Promise<void>;
+  }) => Promise<{ data: Lead[]; total: number }>;
+  fetchSingleLead: (id: number) => Promise<Lead | null>;
   fetchTodos: (params?: {
     type?: string;
     page?: number;
     perPage?: number;
     sortOrder?: "asc" | "desc";
   }) => Promise<void>;
+  invalidateLeadsCache: () => void; // Add this new function
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -136,6 +145,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
   const [activeLeadId, setActiveLeadId] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Global cache for leads data that persists across component re-mounts
+  const globalLeadsCache = useRef<{
+    data: Lead[];
+    params: any;
+    timestamp: number;
+    total?: number;
+  }>({
+    data: [],
+    params: null,
+    timestamp: 0
+  });
 
   // Request deduplication
   const activeRequests = useRef<Map<string, Promise<any>>>(new Map());
@@ -201,6 +222,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
     data3: apiLead.data_3 || "",
     createdAt: apiLead.created_at,
     updatedAt: apiLead.updated_at,
+    isDeleted: apiLead.is_deleted === "1",
   });
 
   const fetchTodos = useCallback(
@@ -263,7 +285,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
                 type:
                   getOptionByApiValue(todoTypeOptions, task.type)?.value ||
                   "Other",
-                title: task.title,
+
                 description: task.description || "",
                 responseNote: task.response_note || "",
                 status:
@@ -299,7 +321,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
         search?: string;
         currentFilters?: FilterOption[];
       } = {}
-    ) => {
+    ): Promise<{ data: Lead[]; total: number }> => {
       const {
         page = 1,
         perPage = 20,
@@ -308,6 +330,30 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
         search = "",
         currentFilters = leadFilters,
       } = params;
+
+      // Create a more stable cache key that properly handles filter changes
+      const cacheKey = JSON.stringify({
+        page,
+        perPage,
+        sortField,
+        sortOrder,
+        search,
+        filters: currentFilters.sort((a, b) => a.field.localeCompare(b.field))
+      });
+      
+      const cacheAge = Date.now() - globalLeadsCache.current.timestamp;
+      const cacheValid = cacheAge < 2 * 60 * 1000; // 2 minutes cache
+
+      // Only use cache if parameters are exactly the same and cache is valid
+      if (
+        globalLeadsCache.current.data.length > 0 &&
+        globalLeadsCache.current.params === cacheKey &&
+        cacheValid
+      ) {
+        // Return cached data immediately
+        setLeads(globalLeadsCache.current.data);
+        return { data: globalLeadsCache.current.data, total: globalLeadsCache.current.total || 0 };
+      }
 
       const requestKey = createRequestKey("leads", params);
 
@@ -331,10 +377,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
           currentFilters.forEach((filter) => {
             switch (filter.field) {
               case "stage":
-                queryParams.append(
-                  "stage",
-                  getApiValue(stageOptions, filter.value as string)
-                );
+                const stageApiValue = getApiValue(stageOptions, filter.value as string);
+                // If the stage value doesn't match any known stage, use "Other" as fallback
+                const finalStageValue = stageApiValue === filter.value && !stageOptions.find(opt => opt.value === filter.value) 
+                  ? "Other" 
+                  : stageApiValue;
+                queryParams.append("stage", finalStageValue);
                 break;
 
               case "priority":
@@ -404,25 +452,38 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
             throw new Error("Failed to fetch leads");
           }
 
-          const data = await response.json();
+          const apiResponse: ApiResponse<ApiLead[]> = await response.json();
 
-          if (data.status === "success") {
-            const transformedLeads: Lead[] = data.data.map((item: ApiLead) =>
+          if (apiResponse.status === "success") {
+            const transformedLeads: Lead[] = apiResponse.data.map((item: ApiLead) =>
               transformApiLeadToLead(item)
             );
+            
+            const total = apiResponse.total || 0;
+            
+            // Store in global cache with the stable cache key
+            globalLeadsCache.current = {
+              data: transformedLeads,
+              params: cacheKey,
+              timestamp: Date.now(),
+              total: total
+            };
+            
             setLeads(transformedLeads);
+            return { data: transformedLeads, total: total }; // Return both data and total
           } else {
-            throw new Error(data.message || "Failed to fetch leads");
+            throw new Error(apiResponse.message || "Failed to fetch leads");
           }
         } catch (err) {
           setError(err instanceof Error ? err.message : "An error occurred");
           console.error("Error fetching leads:", err);
+          throw err;
         } finally {
           setIsLoading(false);
         }
       });
     },
-    []
+    [leadFilters]
   );
 
   // Only fetch todos once on mount
@@ -484,7 +545,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
         alternative_contact_details: lead.alternatePhone,
         stage: getApiValue(stageOptions, lead.stage),
         ourRating: lead.ourRating,
-        intent: lead.intent,
+        intent: getApiValue(intentOptions, lead.intent),
         budget: lead.budget.toString(),
         preferred_area: lead.preferredLocation.join(","),
         size: lead.preferredSize.join(","),
@@ -525,7 +586,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
         // Update the contact API
         await updateContactAPI(newLead);
 
-        await fetchLeads();
+        // Invalidate cache and fetch fresh data
+        invalidateLeadsCache();
+        
+        // Fetch fresh data
+        await fetchLeads().then(result => {
+          // Update the leads state with the new data
+          setLeads(result.data);
+        });
         setActiveLeadId(parseInt(data.id));
         toast.success("Lead added successfully");
       } else {
@@ -651,7 +719,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
           await updateContactAPI(updatedLead);
         }
 
+        // Update the lead in the local state
         setLeads(leads.map((lead) => (lead.id === id ? updatedLead : lead)));
+        
+        // Only invalidate cache if we're not on the lead detail page
+        // This prevents unnecessary refreshes when editing lead details
+        if (activeLeadId !== id) {
+          invalidateLeadsCache();
+        } else {
+          // If we're on the lead detail page, invalidate cache but skip the event
+          // This updates the global cache without triggering LeadsList refresh
+          invalidateLeadsCache({ skipEvent: true });
+        }
+        
         toast.success("Lead updated successfully");
       } else {
         throw new Error(data.message || "Failed to update lead");
@@ -680,7 +760,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
       const apiTodo = {
         lead_id: todo.leadId.toString(),
         type: getApiValue(todoTypeOptions, todo.type),
-        title: todo.title,
+        title: todo.description || '',
         description: todo.description,
         response_note: todo.responseNote,
         status: getApiValue(todoStatusOptions, todo.status),
@@ -721,7 +801,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
 
       if (todoUpdate.type !== undefined)
         apiUpdate.type = getApiValue(todoTypeOptions, todoUpdate.type);
-      if (todoUpdate.title !== undefined) apiUpdate.title = todoUpdate.title;
+
       if (todoUpdate.description !== undefined)
         apiUpdate.description = todoUpdate.description;
       if (todoUpdate.responseNote !== undefined)
@@ -790,6 +870,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
 
   const clearLeadFilters = () => {
     setLeadFiltersState([]);
+    // Clear global cache when filters are cleared
+    globalLeadsCache.current = {
+      data: [],
+      params: null,
+      timestamp: 0
+    };
   };
 
   const clearTodoFilters = () => {
@@ -842,36 +928,99 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
     return todos.filter((todo) => todo.leadId === leadId);
   };
 
+  const fetchSingleLead = useCallback(
+    async (id: number) => {
+      const requestKey = createRequestKey("singleLead", id);
+      return makeRequest(requestKey, async () => {
+        setIsLoading(true);
+        setError(null);
+
+        try {
+          const response = await fetch(`${API_BASE_URL}/?action=get_lead&id=${id}`);
+          if (!response.ok) {
+            throw new Error("Failed to fetch single lead");
+          }
+          const data = await response.json();
+          if (data.status === "success") {
+            const transformedLead = transformApiLeadToLead(data.data);
+            setLeads((prevLeads) => {
+              const existingLeadIndex = prevLeads.findIndex(
+                (l) => l.id === transformedLead.id
+              );
+              if (existingLeadIndex >= 0) {
+                const updatedLeads = [...prevLeads];
+                updatedLeads[existingLeadIndex] = transformedLead;
+                return updatedLeads;
+              }
+              return [...prevLeads, transformedLead];
+            });
+            return transformedLead;
+          } else {
+            throw new Error(data.message || "Failed to fetch single lead");
+          }
+        } catch (err) {
+          setError(err instanceof Error ? err.message : "An error occurred");
+          console.error("Error fetching single lead:", err);
+          return null;
+        } finally {
+          setIsLoading(false);
+        }
+      });
+    },
+    []
+  );
+
+  // Add a cache invalidation function
+  const invalidateLeadsCache = useCallback((options?: { skipEvent?: boolean }) => {
+    // Clear the global cache
+    globalLeadsCache.current = {
+      data: [],
+      params: '',
+      timestamp: 0,
+      total: 0
+    };
+    
+    // Only dispatch event if not skipped
+    if (!options?.skipEvent) {
+      // Dispatch a custom event to notify components to clear their local cache
+      window.dispatchEvent(new CustomEvent('leadsCacheInvalidated'));
+    }
+  }, []);
+
+  const contextValue: AppContextType = {
+    leads,
+    todos,
+    leadFilters,
+    todoFilters,
+    activeLeadId,
+    isLoading,
+    error,
+    addLead,
+    updateLead,
+    deleteLead,
+    addTodo,
+    updateTodo,
+    deleteTodo,
+    getFilteredLeads,
+    getFilteredTodos,
+    getLeadById,
+    getTodosByLeadId,
+    setLeadFilters,
+    setTodoFilters,
+    clearLeadFilters,
+    clearTodoFilters,
+    removeLeadFilter,
+    removeTodoFilter,
+    setActiveLeadId,
+    fetchLeads,
+    fetchSingleLead,
+    fetchTodos,
+    invalidateLeadsCache, // Add this to the context value
+  };
+
   return (
     <AppContext.Provider
-      value={{
-        leads,
-        todos,
-        leadFilters,
-        todoFilters,
-        activeLeadId,
-        isLoading,
-        error,
-        addLead,
-        updateLead,
-        deleteLead,
-        addTodo,
-        updateTodo,
-        deleteTodo,
-        setLeadFilters,
-        setTodoFilters,
-        removeLeadFilter,
-        removeTodoFilter,
-        clearLeadFilters,
-        clearTodoFilters,
-        setActiveLeadId,
-        getFilteredLeads,
-        getFilteredTodos,
-        getLeadById,
-        getTodosByLeadId,
-        fetchLeads,
-        fetchTodos,
-      }}
+      value={contextValue}
     >
       {children}
     </AppContext.Provider>

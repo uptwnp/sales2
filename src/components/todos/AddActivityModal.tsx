@@ -23,11 +23,11 @@ const AddActivityModal: React.FC<AddActivityModalProps> = ({
   const initialActivityState: Omit<Todo, 'id' | 'createdAt' | 'updatedAt'> = {
     leadId: leadId || 0,
     type: 'Activity',
-    title: '',
+
     description: '',
     responseNote: '',
     status: 'Completed',
-    dateTime: new Date().toISOString(),
+    dateTime: new Date().toISOString(), // Use current time for activities
     participants: [],
   };
 
@@ -56,7 +56,7 @@ const AddActivityModal: React.FC<AddActivityModalProps> = ({
   const isFormValid = () => {
     return (
       formData.leadId !== 0 &&
-      formData.title.trim() !== ''
+      formData.description.trim() !== ''
     );
   };
 
@@ -92,25 +92,14 @@ const AddActivityModal: React.FC<AddActivityModalProps> = ({
         )}
         
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Title *</label>
-          <input
-            type="text"
-            name="title"
-            value={formData.title}
-            onChange={handleInputChange}
-            className="input"
-            placeholder="Enter activity title"
-          />
-        </div>
-        
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Description *</label>
           <textarea
             name="description"
             value={formData.description}
             onChange={handleInputChange}
             className="input h-24"
             placeholder="Enter activity details"
+            required
           />
         </div>
 

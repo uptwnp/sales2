@@ -6,12 +6,8 @@ import Layout from './layout/Layout';
 import LeadsList from './components/leads/LeadsList';
 import LeadDetail from './components/leads/LeadDetail';
 import TodosList from './components/todos/TodosList';
-import FollowUps from './components/todos/FollowUps';
-import Meetings from './components/todos/Meetings';
 import Activities from './components/todos/Activities';
 import Calendar from './components/calendar/Calendar';
-import PWAInstallPrompt from './components/common/PWAInstallPrompt';
-import PWAUpdatePrompt from './components/common/PWAUpdatePrompt';
 
 const App: React.FC = () => {
   return (
@@ -48,9 +44,6 @@ const App: React.FC = () => {
           <Route path="*" element={<Navigate to="/leads" replace />} />
         </Route>
       </Routes>
-      
-      <PWAInstallPrompt />
-      <PWAUpdatePrompt />
       
       <ToastContainer
         position="top-right"

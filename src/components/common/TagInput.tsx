@@ -181,12 +181,12 @@ const TagInput: React.FC<TagInputProps> = ({
       </div>
 
       {isOpen && filteredOptions.length > 0 && (
-        <div className="absolute z-10 mt-1 w-full bg-white shadow-lg max-h-60 rounded-md py-1 text-base overflow-auto focus:outline-none sm:text-sm animate-fade-in">
+        <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 shadow-lg max-h-60 rounded-md py-1 text-base overflow-auto focus:outline-none sm:text-sm animate-fade-in">
           {filteredOptions.map((option) => (
             <div
               key={option.value}
-              className={`cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-blue-50 ${
-                value.includes(option.label) ? 'bg-blue-50' : ''
+              className={`cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-blue-50 border-l-2 border-transparent hover:border-blue-500 ${
+                value.includes(option.label) ? 'bg-blue-50 border-l-2 border-blue-500' : ''
               }`}
               onClick={() => handleOptionClick(option)}
             >

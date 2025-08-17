@@ -1,4 +1,4 @@
-import { format, isToday, formatDistanceToNow } from 'date-fns';
+import { format, isToday, isTomorrow, isThisYear } from 'date-fns';
 
 export const formatDateTime = (dateString: string, formatStr: string = 'PPp') => {
   const date = new Date(dateString);
@@ -10,7 +10,11 @@ export const formatRelativeTime = (dateString: string) => {
   if (isToday(date)) {
     return `Today, ${format(date, 'h:mm a')}`;
   }
-  return formatDistanceToNow(date, { addSuffix: true });
+  if (isTomorrow(date)) {
+    return `Tomorrow, ${format(date, 'h:mm a')}`;
+  }
+  const absoluteFormat = isThisYear(date) ? 'd MMM, h:mm a' : 'd MMM yyyy, h:mm a';
+  return format(date, absoluteFormat);
 };
 
 export const formatDateForInput = (dateString: string) => {

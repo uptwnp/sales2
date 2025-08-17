@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Modal from '../common/Modal';
 import { useAppContext } from '../../contexts/AppContext';
@@ -8,11 +8,14 @@ import Badge from '../ui/Badge';
 import { dropdownOptions, tagOptions } from '../../data/options';
 import Dropdown from '../common/Dropdown';
 import TagInput from '../common/TagInput';
+import QuickDateTimeInput from '../common/QuickDateTimeInput';
+import TodoActionModal from './TodoActionModal';
+import { Pencil, CheckCircle, XCircle, RotateCcw, RefreshCw } from 'lucide-react';
 
 interface TodoViewModalProps {
   isOpen: boolean;
   onClose: () => void;
-  todo: Todo;
+  todo: Todo | null;
 }
 
 const TodoViewModal: React.FC<TodoViewModalProps> = ({
@@ -23,8 +26,25 @@ const TodoViewModal: React.FC<TodoViewModalProps> = ({
   const { getLeadById, updateTodo } = useAppContext();
   const navigate = useNavigate();
 
-  const [editedTodo, setEditedTodo] = useState<Todo>(todo);
+  const [editedTodo, setEditedTodo] = useState<Todo | null>(todo);
   const [isEditing, setIsEditing] = useState(false);
+  const [isActionModalOpen, setIsActionModalOpen] = useState(false);
+  const [actionType, setActionType] = useState<'complete' | 'cancel' | 'reschedule' | 'reopen'>('reschedule');
+
+  // Update editedTodo when todo prop changes
+  useEffect(() => {
+    setEditedTodo(todo);
+  }, [todo]);
+
+  // Don't render if modal is not open
+  if (!isOpen) {
+    return null;
+  }
+
+  // Don't render if todo is null
+  if (!todo || !editedTodo) {
+    return null;
+  }
 
   const lead = getLeadById(editedTodo.leadId);
 
@@ -32,54 +52,54 @@ const TodoViewModal: React.FC<TodoViewModalProps> = ({
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
     const { name, value } = e.target;
-    setEditedTodo((prev) => ({ ...prev, [name]: value }));
+    setEditedTodo((prev) => prev ? ({ ...prev, [name]: value }) : null);
   };
 
   const handleDropdownChange = (name: string, value: string) => {
-    setEditedTodo((prev) => ({ ...prev, [name]: value }));
+    setEditedTodo((prev) => prev ? ({ ...prev, [name]: value }) : null);
   };
 
   const handleTagChange = (name: string, value: string[]) => {
-    setEditedTodo((prev) => ({ ...prev, [name]: value }));
+    setEditedTodo((prev) => prev ? ({ ...prev, [name]: value }) : null);
   };
 
-  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { value } = e.target;
+  const handleDateChange = (value: string) => {
+    if (!editedTodo) return;
     const currentDateTime = new Date(editedTodo.dateTime);
     const [year, month, day] = value.split('-').map(Number);
-
     currentDateTime.setFullYear(year);
     currentDateTime.setMonth(month - 1);
     currentDateTime.setDate(day);
-
-    setEditedTodo((prev) => ({
+    setEditedTodo((prev) => prev ? ({
       ...prev,
       dateTime: currentDateTime.toISOString(),
-    }));
+    }) : null);
   };
 
-  const handleTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { value } = e.target;
+  const handleTimeChange = (value: string) => {
+    if (!editedTodo) return;
     const currentDateTime = new Date(editedTodo.dateTime);
     const [hours, minutes] = value.split(':').map(Number);
-
     currentDateTime.setHours(hours);
     currentDateTime.setMinutes(minutes);
-
-    setEditedTodo((prev) => ({
+    setEditedTodo((prev) => prev ? ({
       ...prev,
       dateTime: currentDateTime.toISOString(),
-    }));
+    }) : null);
   };
 
   const handleSave = () => {
-    updateTodo(todo.id, editedTodo);
-    setIsEditing(false);
+    if (editedTodo) {
+      updateTodo(todo.id, editedTodo);
+      setIsEditing(false);
+    }
   };
 
   const handleStatusChange = (
     newStatus: 'Completed' | 'Cancelled' | 'Pending'
   ) => {
+    if (!editedTodo) return;
+    
     const updatedTodo = {
       ...editedTodo,
       status: newStatus,
@@ -101,44 +121,32 @@ const TodoViewModal: React.FC<TodoViewModalProps> = ({
       onClose={onClose}
       title={
         isEditing
-          ? 'Edit ' + editedTodo.id + editedTodo.type
-          : +editedTodo.id + '. ' + editedTodo.type + ' Details'
+          ? 'Edit ' + '#'+ editedTodo.id
+          : +editedTodo.id + ' - ' + editedTodo.type + ' Details'
       }
       size="lg"
     >
       <div className="space-y-4">
         <div>
-          <div className=" items-center justify-between">
-            <div className=" items-center space-x-2">
-              {isEditing ? (
-                <Dropdown
-                  options={dropdownOptions.todoType}
-                  value={editedTodo.type}
-                  onChange={(value) => handleDropdownChange('type', value)}
-                  placeholder="Select type"
-                />
-              ) : (
-                <h3 className="text-lg font-medium mt-2">{editedTodo.title}</h3>
-              )}
-            </div>
-          </div>
+        <div className="items-center justify-between">
+  <div className="items-center space-x-2">
+    {isEditing ? (
+      <Dropdown
+        options={dropdownOptions.todoType}
+        value={editedTodo.type}
+        onChange={(value) => handleDropdownChange('type', value)}
+        placeholder="Select type"
+      />
+    ) : null}
+  </div>
+</div>
+
 
           {isEditing ? (
             <>
+
               <div className="mt-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Title
-                </label>
-                <input
-                  type="text"
-                  name="title"
-                  value={editedTodo.title}
-                  onChange={handleInputChange}
-                  className="input"
-                />
-              </div>
-              <div className="mt-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-xs md:text-sm font-semibold text-gray-600 mb-1">
                   Description
                 </label>
                 <textarea
@@ -157,7 +165,7 @@ const TodoViewModal: React.FC<TodoViewModalProps> = ({
                 </p>
               )}
               <button
-                className="text-gray-600 hover:text-gray-900"
+                className="text-sm md:text-base text-blue-600 hover:text-blue-800 font-medium"
                 onClick={() => {
                   navigate(`/leads/${editedTodo.leadId}`);
                   onClose();
@@ -176,35 +184,29 @@ const TodoViewModal: React.FC<TodoViewModalProps> = ({
           {isEditing ? (
             <>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Date
-                </label>
-                <input
+                <QuickDateTimeInput
                   type="date"
+                  label="Date"
                   value={dateValue}
                   onChange={handleDateChange}
-                  className="input"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Time
-                </label>
-                <input
+                <QuickDateTimeInput
                   type="time"
+                  label="Time"
                   value={timeValue}
                   onChange={handleTimeChange}
-                  className="input"
                 />
               </div>
             </>
           ) : (
             <div>
-              <label className="block text-sm font-medium text-gray-700">
+              <label className="block text-xs md:text-sm font-semibold text-gray-600">
                 Date & Time
               </label>
-              <p className="mt-1">
-                {format(new Date(editedTodo.dateTime), 'PPp')}
+              <p className="mt-1 text-sm md:text-base text-gray-800 font-medium whitespace-nowrap overflow-hidden text-ellipsis">
+                {format(new Date(editedTodo.dateTime), 'dd MMM, h:mm a')}
               </p>
             </div>
           )}
@@ -212,7 +214,7 @@ const TodoViewModal: React.FC<TodoViewModalProps> = ({
         <div>
           {isEditing && (
             <>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-xs md:text-sm font-semibold text-gray-600 mb-1">
                 Participants
               </label>
               <TagInput
@@ -226,7 +228,7 @@ const TodoViewModal: React.FC<TodoViewModalProps> = ({
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-xs md:text-sm font-semibold text-gray-600 mb-1">
             Response
           </label>
           {isEditing || editedTodo.status === 'Pending' ? (
@@ -238,44 +240,57 @@ const TodoViewModal: React.FC<TodoViewModalProps> = ({
               placeholder="Enter response or notes..."
             />
           ) : (
-            <p className="mt-1 text-gray-600">
+            <p className="mt-1 text-sm md:text-base text-gray-700">
               {editedTodo.responseNote || 'No response provided'}
             </p>
           )}
         </div>
         {!isEditing && (
-          <div className="flex space-x-2">
-            <div className="flex-1">
+          <div className="flex items-center justify-between">
+            <div>
               <button
-                className="btn btn-outline py-1 px-2"
+                className="p-1.5 text-gray-600 hover:text-gray-900 rounded-full hover:bg-gray-100"
                 onClick={() => setIsEditing(true)}
+                title="Edit"
               >
-                Edit
+                <Pencil size={16} />
               </button>
             </div>
-            {editedTodo.status === 'Pending' ? (
-              <>
+            <div className="flex space-x-1.5">
+              {editedTodo.status === 'Pending' ? (
+                <>
+                  <button
+                    className="p-1.5 text-gray-600 hover:text-green-600 rounded-full hover:bg-green-50"
+                    onClick={() => handleStatusChange('Completed')}
+                    title="Complete"
+                  >
+                    <CheckCircle size={18} />
+                  </button>
+                  <button
+                    className="p-1.5 text-gray-600 hover:text-red-600 rounded-full hover:bg-red-50"
+                    onClick={() => handleStatusChange('Cancelled')}
+                    title="Cancel"z
+                  >
+                    <XCircle size={18} />
+                  </button>
+                  <button
+                    className="p-1.5 text-gray-600 hover:text-orange-600 rounded-full hover:bg-orange-50"
+                    onClick={() => { setActionType('reschedule'); setIsActionModalOpen(true); }}
+                    title="Reschedule"
+                  >
+                    <RotateCcw size={18} />
+                  </button>
+                </>
+              ) : (
                 <button
-                  className="btn btn-success py-1 px-2"
-                  onClick={() => handleStatusChange('Completed')}
+                  className="p-1.5 text-gray-600 hover:text-blue-600 rounded-full hover:bg-blue-50"
+                  onClick={() => handleStatusChange('Pending')}
+                  title="Reopen"
                 >
-                  Complete
+                  <RefreshCw size={18} />
                 </button>
-                <button
-                  className="btn btn-danger py-1 px-2"
-                  onClick={() => handleStatusChange('Cancelled')}
-                >
-                  Cancel
-                </button>
-              </>
-            ) : (
-              <button
-                className="btn btn-outline py-1 px-2"
-                onClick={() => handleStatusChange('Pending')}
-              >
-                Reopen
-              </button>
-            )}
+              )}
+            </div>
           </div>
         )}
         {isEditing && (
@@ -295,6 +310,12 @@ const TodoViewModal: React.FC<TodoViewModalProps> = ({
           </div>
         )}
       </div>
+      <TodoActionModal
+        isOpen={isActionModalOpen}
+        onClose={() => setIsActionModalOpen(false)}
+        todo={editedTodo}
+        actionType={actionType}
+      />
     </Modal>
   );
 };

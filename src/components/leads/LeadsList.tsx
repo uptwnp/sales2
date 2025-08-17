@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Phone,
@@ -14,148 +14,497 @@ import LeadFilterModal from './LeadFilterModal';
 import AddLeadModal from './AddLeadModal';
 import Badge from '../ui/Badge';
 import { usePersistentState } from '../../hooks/usePersistentState';
-import { formatPhoneNumber, getClipboardText, isValidPhoneNumber } from '../../utils/phone';
+import { useOptimizedDataFetching } from '../../hooks/useOptimizedDataFetching';
+import { Lead } from '../../types';
+import { dropdownOptions, tagOptions } from '../../data/options';
+import Dropdown from '../common/Dropdown';
+import TagInput from '../common/TagInput';
 
 type SortField = 'id' | 'name' | 'budget' | 'stage' | 'created_at';
 type SortDirection = 'asc' | 'desc';
 
 const LeadsList: React.FC = () => {
-  const { getFilteredLeads, leadFilters, clearLeadFilters, removeLeadFilter, fetchLeads, isLoading, getTodosByLeadId } = useAppContext();
+  const { 
+    getFilteredLeads, 
+    leadFilters, 
+    clearLeadFilters, 
+    removeLeadFilter, 
+    fetchLeads, 
+    isLoading: contextLoading, 
+    getTodosByLeadId,
+    setLeadFilters
+  } = useAppContext();
+  
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
   const [isAddLeadModalOpen, setIsAddLeadModalOpen] = useState(false);
+  const [totalLeads, setTotalLeads] = useState(0);
   const navigate = useNavigate();
 
+  // Desktop filter states
+  const [desktopStage, setDesktopStage] = useState('');
+  const [desktopTags, setDesktopTags] = useState<string[]>([]);
+  const [desktopSegment, setDesktopSegment] = useState('');
+
   // Use persistent state for leads section
-  const { state, updateState } = usePersistentState('leads');
-  const { currentPage, sortField, sortDirection, searchQuery } = state;
+  const { state, updateState, clearFilters, clearSearch, clearAll, updateFilters } = usePersistentState('leads');
+  const { currentPage, sortField, sortDirection, searchQuery, filters: savedFilters } = state;
 
-  const leads = getFilteredLeads();
-  const isInitialMount = React.useRef(true);
+  // Use optimized data fetching with caching
+  const {
+    data: cachedLeads,
+    isLoading: isDataLoading,
+    fetchData,
+    clearCache
+  } = useOptimizedDataFetching<{ data: Lead[]; total: number }>(
+    async (params) => {
+      // Call fetchLeads and return the actual data from the API
+      return await fetchLeads(params);
+    },
+    { ttl: 2 * 60 * 1000, maxSize: 20 } // 2 minutes cache
+  );
 
-  // This effect handles resetting the page when filters or search query change.
+  const leads = cachedLeads?.data || [];
+  const total = cachedLeads?.total || 0;
+  const totalPages = Math.ceil(total / 20);
+
+  // Update total leads when cached data changes
   useEffect(() => {
-    if (isInitialMount.current) {
-      isInitialMount.current = false;
-    } else {
-      // Any change in filters or search will reset the page.
-      updateState({ currentPage: 1 });
+    if (cachedLeads?.total !== undefined) {
+      setTotalLeads(cachedLeads.total);
     }
-  }, [leadFilters, searchQuery]);
+  }, [cachedLeads?.total]);
 
-  // This effect handles the data fetching.
+  const hasInitialData = React.useRef(false);
+  const prevFiltersRef = React.useRef(leadFilters);
+  const latestFiltersRef = React.useRef(leadFilters);
+  const [isFiltersInitialized, setIsFiltersInitialized] = useState(false);
+  const filtersClearedRef = React.useRef(false);
+  const lastRequestParams = React.useRef<string>('');
+  const lastRequestTime = React.useRef<number>(0);
+
+  // Listen for cache invalidation events
   useEffect(() => {
-    const handler = setTimeout(() => {
-      fetchLeads({
+    const handleCacheInvalidation = () => {
+      // Clear the local cache
+      clearCache();
+      
+      // Force refresh the data only if we're on the leads list page
+      // This prevents unnecessary refreshes when on other pages
+      if (hasInitialData.current && window.location.pathname === '/leads') {
+        const params = {
+          page: currentPage,
+          perPage: 20,
+          sortField,
+          sortOrder: sortDirection,
+          search: searchQuery,
+          currentFilters: latestFiltersRef.current,
+        };
+        fetchData(params, { forceRefresh: true });
+      }
+    };
+
+    const handleWindowFocus = () => {
+      // Refresh data when window gains focus (user returns to tab)
+      if (hasInitialData.current && window.location.pathname === '/leads') {
+        const params = {
+          page: currentPage,
+          perPage: 20,
+          sortField,
+          sortOrder: sortDirection,
+          search: searchQuery,
+          currentFilters: latestFiltersRef.current,
+        };
+        fetchData(params, { background: true }); // Background refresh to avoid loading state
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      // Refresh data when page becomes visible (user navigates back)
+      if (!document.hidden && hasInitialData.current && window.location.pathname === '/leads') {
+        const params = {
+          page: currentPage,
+          perPage: 20,
+          sortField,
+          sortOrder: sortDirection,
+          search: searchQuery,
+          currentFilters: latestFiltersRef.current,
+        };
+        fetchData(params, { background: true }); // Background refresh to avoid loading state
+      }
+    };
+
+    window.addEventListener('leadsCacheInvalidated', handleCacheInvalidation);
+    window.addEventListener('focus', handleWindowFocus);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      window.removeEventListener('leadsCacheInvalidated', handleCacheInvalidation);
+      window.removeEventListener('focus', handleWindowFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [clearCache, fetchData, currentPage, sortField, sortDirection, searchQuery]);
+
+  // Save page state before navigation
+  const savePageState = useCallback(() => {
+    // Save scroll position to session storage
+    sessionStorage.setItem('leadsListScrollPosition', window.scrollY.toString());
+  }, []);
+
+  // Restore page state after navigation
+  const restorePageState = useCallback(() => {
+    const savedScrollPosition = sessionStorage.getItem('leadsListScrollPosition');
+    if (savedScrollPosition) {
+      const scrollPosition = parseInt(savedScrollPosition);
+      if (scrollPosition > 0) {
+        window.scrollTo(0, scrollPosition);
+      }
+    }
+  }, []);
+
+  // Restore page state on mount if we have data
+  useEffect(() => {
+    if (leads.length > 0) {
+      // Small delay to ensure DOM is ready
+      setTimeout(() => {
+        restorePageState();
+      }, 50);
+    }
+  }, [leads.length, restorePageState]);
+
+  // Save page state when component unmounts
+  useEffect(() => {
+    return () => {
+      savePageState();
+    };
+  }, [savePageState]);
+
+  // Immediately check for cached data on mount
+  useEffect(() => {
+    if (leads.length > 0) {
+      hasInitialData.current = true;
+    } else if (isFiltersInitialized) {
+      // If no data but filters are initialized, try to get cached data immediately
+      const params = {
         page: currentPage,
-        perPage: 10,
+        perPage: 20,
         sortField,
         sortOrder: sortDirection,
         search: searchQuery,
-        currentFilters: leadFilters,
-      });
-    }, 300); // Small debounce for all changes.
+        currentFilters: latestFiltersRef.current,
+      };
+      
+      // This will check cache first and return cached data if available
+      fetchData(params);
+      hasInitialData.current = true;
+    }
+  }, [leads.length, isFiltersInitialized, currentPage, sortField, sortDirection, searchQuery, fetchData]);
+
+  // Keep track of the latest filters
+  useEffect(() => {
+    latestFiltersRef.current = leadFilters;
+  }, [leadFilters]);
+
+  // Initialize filters from persistent state on mount
+  useEffect(() => {
+    if (savedFilters && savedFilters.length > 0 && leadFilters.length === 0) {
+      setLeadFilters(savedFilters);
+      setIsFiltersInitialized(true);
+    } else {
+      // Mark as initialized even if no saved filters or if filters already exist
+      setIsFiltersInitialized(true);
+    }
+  }, []); // Empty dependency array - only run once on mount
+
+  // Sync filters to persistent state when they change
+  useEffect(() => {
+    const prevFilters = prevFiltersRef.current;
+    if (JSON.stringify(prevFilters) !== JSON.stringify(leadFilters)) {
+      // Check if filters were cleared
+      const filtersCleared = prevFilters.length > 0 && leadFilters.length === 0;
+      if (filtersCleared) {
+        filtersClearedRef.current = true;
+      }
+      
+      // Reset last request params when filters change significantly
+      lastRequestParams.current = '';
+      
+      // Update persistent state with new filters
+      updateFilters(leadFilters);
+      prevFiltersRef.current = leadFilters;
+      // Mark filters as initialized when they change
+      setIsFiltersInitialized(true);
+    }
+  }, [leadFilters, updateFilters]);
+
+  // Data fetching effect - only run after filters are initialized
+  useEffect(() => {
+    // Don't fetch data until filters are properly initialized
+    if (!isFiltersInitialized) {
+      return;
+    }
+
+    // Use shorter delay for filter changes to prevent lag
+    const delay = leadFilters.length > 0 ? 100 : 300;
+
+    const handler = setTimeout(() => {
+      const params = {
+        page: currentPage,
+        perPage: 20,
+        sortField,
+        sortOrder: sortDirection,
+        search: searchQuery,
+        currentFilters: latestFiltersRef.current, // Use latest filters from ref
+      };
+
+      // Create a unique key for this request
+      const requestKey = JSON.stringify(params);
+      
+      // Prevent duplicate requests with the same parameters
+      if (lastRequestParams.current === requestKey) {
+        return;
+      }
+      
+      // Debounce: prevent requests that are too close together
+      const now = Date.now();
+      if (now - lastRequestTime.current < 500) { // 500ms minimum between requests
+        return;
+      }
+      
+      lastRequestParams.current = requestKey;
+      lastRequestTime.current = now;
+
+      fetchData(params);
+      hasInitialData.current = true;
+    }, delay);
 
     return () => clearTimeout(handler);
-  }, [currentPage, sortField, sortDirection, searchQuery, leadFilters]);
+  }, [currentPage, sortField, sortDirection, searchQuery, leadFilters, fetchData, isFiltersInitialized]);
 
-  const handleSort = (field: SortField) => {
+  const handleSort = useCallback((field: SortField) => {
     const newDirection = sortField === field && sortDirection === 'asc' ? 'desc' : 'asc';
     updateState({
       sortField: field,
       sortDirection: newDirection,
       currentPage: 1
     });
-    
-    fetchLeads({
-      page: 1,
-      perPage: 10,
-      sortField: field,
-      sortOrder: newDirection,
-      search: searchQuery,
-      currentFilters: leadFilters,
-    });
-  };
+  }, [sortField, sortDirection, updateState]);
 
-  const handleLeadClick = (leadId: number) => {
+  const handleLeadClick = useCallback((leadId: number) => {
+    savePageState();
     navigate(`/leads/${leadId}`);
-  };
+  }, [navigate, savePageState]);
 
-  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleSearch = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
     updateState({
-      searchQuery: e.target.value,
+      searchQuery: value,
       currentPage: 1
     });
-  };
+  }, [updateState]);
 
-  const handleSearchFocus = async () => {
-    if (!searchQuery) {
-      const clipboardText = await getClipboardText();
-      const formattedNumber = formatPhoneNumber(clipboardText);
-      if (isValidPhoneNumber(formattedNumber)) {
-        updateState({ searchQuery: formattedNumber });
-      }
-    }
-  };
-
-  const handlePageChange = (newPage: number) => {
+  const handlePageChange = useCallback((newPage: number) => {
     updateState({ currentPage: newPage });
-    fetchLeads({
-      page: newPage,
-      perPage: 10,
-      sortField,
-      sortOrder: sortDirection,
-      search: searchQuery,
-      currentFilters: leadFilters,
-    });
-  };
+  }, [updateState]);
+
+  const handleClearFilters = useCallback(() => {
+    clearLeadFilters();
+    clearFilters();
+    // Clear global cache to force fresh data fetch
+    // globalLeadsCache.current = []; // This line is removed
+    // Force refresh data when filters are cleared
+    if (hasInitialData.current) {
+      const params = {
+        page: currentPage,
+        perPage: 20,
+        sortField,
+        sortOrder: sortDirection,
+        search: searchQuery,
+        currentFilters: [],
+      };
+      fetchData(params, { forceRefresh: true });
+    }
+  }, [clearLeadFilters, clearFilters, currentPage, sortField, sortDirection, searchQuery, fetchData]);
+
+  const handleClearSearch = useCallback(() => {
+    updateState({ searchQuery: '', currentPage: 1 });
+  }, [updateState]);
+
+  const handleClearAll = useCallback(() => {
+    clearLeadFilters();
+    clearAll();
+    // Clear global cache to force fresh data fetch
+    // globalLeadsCache.current = []; // This line is removed
+    // Force refresh data when all filters are cleared
+    if (hasInitialData.current) {
+      const params = {
+        page: currentPage,
+        perPage: 20,
+        sortField,
+        sortOrder: sortDirection,
+        searchQuery: '',
+        currentFilters: [],
+      };
+      fetchData(params, { forceRefresh: true });
+    }
+  }, [clearLeadFilters, clearAll, currentPage, sortField, sortDirection, fetchData]);
 
   const propertyTypeLabel = (types: string[]) => {
-    return types.join(', ');
+    if (types.length === 0) return "Any";
+    if (types.length === 1) return types[0];
+    return `${types[0]} +${types.length - 1}`;
   };
 
   const locationLabel = (locations: string[]) => {
-    return locations.join(', ');
+    if (locations.length === 0) return "Any";
+    if (locations.length === 1) return locations[0];
+    return `${locations[0]} +${locations.length - 1}`;
   };
 
   const renderSortIcon = (field: SortField) => {
     if (sortField !== field) return null;
-    return sortDirection === 'asc' ? (
-      <ArrowUp size={14} />
-    ) : (
-      <ArrowDown size={14} />
-    );
+    return sortDirection === 'asc' ? <ArrowUp size={16} /> : <ArrowDown size={16} />;
   };
+
+  // Handle desktop filter changes
+  const handleDesktopStageChange = useCallback((value: string) => {
+    setDesktopStage(value);
+    
+    // Update filters
+    const newFilters = leadFilters.filter(filter => filter.field !== 'stage');
+    if (value) {
+      newFilters.push({ field: 'stage', operator: '=', value });
+    }
+    setLeadFilters(newFilters);
+  }, [leadFilters, setLeadFilters]);
+
+  const handleDesktopTagsChange = useCallback((tags: string[]) => {
+    setDesktopTags(tags);
+    
+    // Update filters
+    const newFilters = leadFilters.filter(filter => filter.field !== 'tags');
+    if (tags.length > 0) {
+      newFilters.push({ field: 'tags', operator: '=', value: tags });
+    }
+    setLeadFilters(newFilters);
+  }, [leadFilters, setLeadFilters]);
+
+  const handleDesktopSegmentChange = useCallback((value: string) => {
+    setDesktopSegment(value);
+    
+    // Update filters
+    const newFilters = leadFilters.filter(filter => filter.field !== 'segment');
+    if (value) {
+      newFilters.push({ field: 'segment', operator: '=', value });
+    }
+    setLeadFilters(newFilters);
+  }, [leadFilters, setLeadFilters]);
+
+  // Sync desktop filters with leadFilters
+  useEffect(() => {
+    const stageFilter = leadFilters.find(filter => filter.field === 'stage');
+    const tagsFilter = leadFilters.find(filter => filter.field === 'tags');
+    const segmentFilter = leadFilters.find(filter => filter.field === 'segment');
+    
+    if (stageFilter) {
+      setDesktopStage(stageFilter.value as string);
+    } else {
+      setDesktopStage('');
+    }
+    
+    if (tagsFilter) {
+      setDesktopTags(Array.isArray(tagsFilter.value) ? tagsFilter.value : [tagsFilter.value as string]);
+    } else {
+      setDesktopTags([]);
+    }
+
+    if (segmentFilter) {
+      setDesktopSegment(segmentFilter.value as string);
+    } else {
+      setDesktopSegment('');
+    }
+  }, [leadFilters]);
+
+  const handleAddLeadModalClose = useCallback(() => {
+    setIsAddLeadModalOpen(false);
+    // Force refresh data when modal is closed
+    if (hasInitialData.current) {
+      const params = {
+        page: currentPage,
+        perPage: 20,
+        sortField,
+        sortOrder: sortDirection,
+        search: searchQuery,
+        currentFilters: latestFiltersRef.current,
+      };
+      fetchData(params, { forceRefresh: true });
+    }
+  }, [currentPage, sortField, sortDirection, searchQuery, fetchData]);
 
   return (
     <>
       <div className="p-2">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
-          <div className="flex mt-4 md:mt-0 space-x-2">
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="Search leads..."
-                className="input pr-10"
-                value={searchQuery}
-                onChange={handleSearch}
-                onFocus={handleSearchFocus}
-              />
-            </div>
-            <button
-              className="btn btn-outline flex items-center"
-              onClick={() => setIsFilterModalOpen(true)}
-            >
-              <Filter size={16} />
-            </button>
+          <div className="flex flex-col md:flex-row mt-4 md:mt-0 space-y-2 md:space-y-0 md:space-x-2 w-full">
+            {/* Search and buttons row - always on same line */}
+            <div className="flex items-center space-x-2 w-full md:w-auto">
+              <div className="relative flex-1 md:w-64">
+                <input
+                  type="text"
+                  placeholder="Search leads..."
+                  className="input pr-10 w-full"
+                  value={searchQuery || ''}
+                  onChange={handleSearch}
+                />
+              </div>
+              
+              <div className="flex space-x-2 flex-shrink-0">
+                <button
+                  className="btn btn-outline flex items-center h-10 px-3"
+                  onClick={() => setIsFilterModalOpen(true)}
+                >
+                  <Filter size={16} />
+                </button>
 
-            <button
-              className="btn btn-primary"
-              onClick={() => setIsAddLeadModalOpen(true)}
-            >
-              <Plus size={16} />
-            </button>
+                <button
+                  className="btn btn-primary flex items-center h-10 px-3"
+                  onClick={() => setIsAddLeadModalOpen(true)}
+                >
+                  <Plus size={16} />
+                </button>
+              </div>
+            </div>
+            
+            {/* Desktop-only filters in same line */}
+            <div className="hidden md:flex md:space-x-2 md:flex-1">
+              <div className="flex-1 max-w-xs">
+                <Dropdown
+                  options={dropdownOptions.segment}
+                  value={desktopSegment}
+                  onChange={handleDesktopSegmentChange}
+                  placeholder="All Segments"
+                />
+              </div>
+              <div className="flex-1 max-w-xs">
+                <Dropdown
+                  options={dropdownOptions.stage}
+                  value={desktopStage}
+                  onChange={handleDesktopStageChange}
+                  placeholder="All Stages"
+                />
+              </div>
+              <div className="flex-1 max-w-xs">
+                <TagInput
+                  options={tagOptions.tags}
+                  value={desktopTags}
+                  onChange={handleDesktopTagsChange}
+                  placeholder="Select tags..."
+                />
+              </div>
+            </div>
           </div>
         </div>
+
+        {/* Desktop-only filter section - removed since moved to top line */}
 
         {leadFilters.length > 0 && (
           <div className="flex flex-wrap items-center gap-2 mb-4 p-2 bg-gray-50 rounded-md">
@@ -172,7 +521,7 @@ const LeadsList: React.FC = () => {
             ))}
             <button
               className="text-sm text-red-600 hover:text-red-800 flex items-center"
-              onClick={clearLeadFilters}
+              onClick={handleClearAll}
             >
               <X size={14} className="mr-1" />
               Clear All
@@ -219,20 +568,14 @@ const LeadsList: React.FC = () => {
                   </th>
                   <th className="table-header">Tags</th>
                   <th className="table-header">Tasks</th>
-                  <th className="table-header">Property Type</th>
-                  <th className="table-header">Preferred Location</th>
+                  <th className="table-header">Type</th>
+                  <th className="table-header">Location</th>
                   <th className="table-header">Requirements</th>
                   <th className="table-header">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {isLoading ? (
-                  <tr>
-                    <td colSpan={10} className="px-6 py-4 text-center">
-                      Loading...
-                    </td>
-                  </tr>
-                ) : leads.length === 0 ? (
+                {leads.length === 0 ? (
                   <tr>
                     <td
                       colSpan={10}
@@ -244,17 +587,17 @@ const LeadsList: React.FC = () => {
                     </td>
                   </tr>
                 ) : (
-                  leads.map((lead) => (
+                  leads.map((lead, index) => (
                     <tr
                       key={lead.id}
-                      className="hover:bg-gray-50 cursor-pointer transition-colors"
+                      className="hover:bg-gray-50 cursor-pointer transition-all duration-200 ease-in-out"
                       onClick={() => handleLeadClick(lead.id)}
                     >
                       <td className="table-cell font-medium">{lead.id}</td>
                       <td className="table-cell font-medium text-gray-700 truncate max-w-[150px]">
                         {lead.name}
                       </td>
-                      <td className="table-cell">{lead.budget} Lakh</td>
+                      <td className="table-cell">{lead.budget}L</td>
                       <td className="table-cell">
                         <Badge
                           label={lead.stage}
@@ -270,16 +613,16 @@ const LeadsList: React.FC = () => {
                         />
                       </td>
                       <td className="table-cell">
-                        <div className="flex flex-wrap gap-1">
-                          {lead.tags.slice(0, 2).map((tag, idx) => (
-                            <Badge key={idx} label={tag} color="gray" small />
-                          ))}
-                          {lead.tags.length > 2 && (
-                            <Badge
-                              label={`+${lead.tags.length - 2}`}
-                              color="gray"
-                              small
-                            />
+                        <div className="flex items-center space-x-1 truncate">
+                          {lead.tags.length > 0 ? (
+                            <>
+                              <span className="text-sm text-gray-600">
+                                {lead.tags.slice(0, 2).join(', ')}
+                                {lead.tags.length > 2 && ` +${lead.tags.length - 2}`}
+                              </span>
+                            </>
+                          ) : (
+                            <span className="text-sm text-gray-400">No tags</span>
                           )}
                         </div>
                       </td>
@@ -290,10 +633,17 @@ const LeadsList: React.FC = () => {
                         />
                       </td>
                       <td className="table-cell">
-                        <div className="flex flex-wrap gap-1">
-                          {lead.propertyType.map((type, idx) => (
-                            <Badge key={idx} label={type} color="gray" small />
-                          ))}
+                        <div className="flex items-center space-x-1 truncate">
+                          {lead.propertyType.length > 0 ? (
+                            <>
+                              <span className="text-sm text-gray-600">
+                                {lead.propertyType.slice(0, 2).join(', ')}
+                                {lead.propertyType.length > 2 && ` +${lead.propertyType.length - 2}`}
+                              </span>
+                            </>
+                          ) : (
+                            <span className="text-sm text-gray-400">Any</span>
+                          )}
                         </div>
                       </td>
                       <td className="table-cell truncate max-w-[200px]">
@@ -305,7 +655,7 @@ const LeadsList: React.FC = () => {
                       <td className="table-cell">
                         <div className="flex space-x-2">
                           <button
-                            className="p-1 text-gray-600 hover:text-blue-600 rounded-full hover:bg-blue-50"
+                            className="p-1 text-gray-600 hover:text-blue-600 rounded-full hover:bg-blue-50 transition-colors duration-200"
                             onClick={(e) => {
                               e.stopPropagation();
                               window.open(`tel:${lead.phone}`);
@@ -314,7 +664,7 @@ const LeadsList: React.FC = () => {
                             <Phone size={16} />
                           </button>
                           <button
-                            className="p-1 text-gray-600 hover:text-green-600 rounded-full hover:bg-green-50"
+                            className="p-1 text-gray-600 hover:text-green-600 rounded-full hover:bg-green-50 transition-colors duration-200"
                             onClick={(e) => {
                               e.stopPropagation();
                               window.open(`https://wa.me/${lead.phone}`);
@@ -331,23 +681,23 @@ const LeadsList: React.FC = () => {
             </table>
           </div>
 
-          {leads.length > 0 && (
+          {(leads.length > 0 || totalLeads > 0) && totalPages > 0 && (
             <div className="bg-gray-50 py-3 px-4 border-t border-gray-200 flex items-center justify-between">
               <div className="text-sm text-gray-600">
-                Page {currentPage}
+                Page {currentPage} of {totalPages} ({totalLeads} leads)
               </div>
               <div className="flex space-x-1">
                 <button
                   onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
-                  disabled={currentPage === 1 || isLoading}
-                  className="btn btn-outline py-1 px-3 disabled:opacity-50"
+                  disabled={currentPage === 1 || isDataLoading}
+                  className="btn btn-outline py-1 px-3 disabled:opacity-50 transition-opacity duration-200"
                 >
                   Previous
                 </button>
                 <button
-                  onClick={() => handlePageChange(currentPage + 1)}
-                  disabled={leads.length < 10 || isLoading}
-                  className="btn btn-outline py-1 px-3 disabled:opacity-50"
+                  onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
+                  disabled={currentPage === totalPages || isDataLoading}
+                  className="btn btn-outline py-1 px-3 disabled:opacity-50 transition-opacity duration-200"
                 >
                   Next
                 </button>
@@ -364,7 +714,7 @@ const LeadsList: React.FC = () => {
 
       <AddLeadModal
         isOpen={isAddLeadModalOpen}
-        onClose={() => setIsAddLeadModalOpen(false)}
+        onClose={handleAddLeadModalClose}
       />
     </>
   );
