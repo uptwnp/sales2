@@ -127,6 +127,7 @@ interface AppContextType {
     perPage?: number;
     sortOrder?: "asc" | "desc";
   }) => Promise<void>;
+  invalidateLeadsCache: () => void; // Add this new function
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -585,6 +586,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
         // Update the contact API
         await updateContactAPI(newLead);
 
+        // Invalidate cache and fetch fresh data
+        invalidateLeadsCache();
+        
+        // Fetch fresh data
         await fetchLeads().then(result => {
           // Update the leads state with the new data
           setLeads(result.data);
@@ -714,7 +719,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
           await updateContactAPI(updatedLead);
         }
 
+        // Update the lead in the local state
         setLeads(leads.map((lead) => (lead.id === id ? updatedLead : lead)));
+        
+        // Only invalidate cache if we're not on the lead detail page
+        // This prevents unnecessary refreshes when editing lead details
+        if (activeLeadId !== id) {
+          invalidateLeadsCache();
+        } else {
+          // If we're on the lead detail page, invalidate cache but skip the event
+          // This updates the global cache without triggering LeadsList refresh
+          invalidateLeadsCache({ skipEvent: true });
+        }
+        
         toast.success("Lead updated successfully");
       } else {
         throw new Error(data.message || "Failed to update lead");
@@ -953,37 +970,57 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
     []
   );
 
+  // Add a cache invalidation function
+  const invalidateLeadsCache = useCallback((options?: { skipEvent?: boolean }) => {
+    // Clear the global cache
+    globalLeadsCache.current = {
+      data: [],
+      params: '',
+      timestamp: 0,
+      total: 0
+    };
+    
+    // Only dispatch event if not skipped
+    if (!options?.skipEvent) {
+      // Dispatch a custom event to notify components to clear their local cache
+      window.dispatchEvent(new CustomEvent('leadsCacheInvalidated'));
+    }
+  }, []);
+
+  const contextValue: AppContextType = {
+    leads,
+    todos,
+    leadFilters,
+    todoFilters,
+    activeLeadId,
+    isLoading,
+    error,
+    addLead,
+    updateLead,
+    deleteLead,
+    addTodo,
+    updateTodo,
+    deleteTodo,
+    getFilteredLeads,
+    getFilteredTodos,
+    getLeadById,
+    getTodosByLeadId,
+    setLeadFilters,
+    setTodoFilters,
+    clearLeadFilters,
+    clearTodoFilters,
+    removeLeadFilter,
+    removeTodoFilter,
+    setActiveLeadId,
+    fetchLeads,
+    fetchSingleLead,
+    fetchTodos,
+    invalidateLeadsCache, // Add this to the context value
+  };
+
   return (
     <AppContext.Provider
-      value={{
-        leads,
-        todos,
-        leadFilters,
-        todoFilters,
-        activeLeadId,
-        isLoading,
-        error,
-        addLead,
-        updateLead,
-        deleteLead,
-        addTodo,
-        updateTodo,
-        deleteTodo,
-        setLeadFilters,
-        setTodoFilters,
-        removeLeadFilter,
-        removeTodoFilter,
-        clearLeadFilters,
-        clearTodoFilters,
-        setActiveLeadId,
-        getFilteredLeads,
-        getFilteredTodos,
-        getLeadById,
-        getTodosByLeadId,
-        fetchLeads,
-        fetchSingleLead,
-        fetchTodos,
-      }}
+      value={contextValue}
     >
       {children}
     </AppContext.Provider>

@@ -53,7 +53,8 @@ const LeadsList: React.FC = () => {
   const {
     data: cachedLeads,
     isLoading: isDataLoading,
-    fetchData
+    fetchData,
+    clearCache
   } = useOptimizedDataFetching<{ data: Lead[]; total: number }>(
     async (params) => {
       // Call fetchLeads and return the actual data from the API
@@ -80,6 +81,68 @@ const LeadsList: React.FC = () => {
   const filtersClearedRef = React.useRef(false);
   const lastRequestParams = React.useRef<string>('');
   const lastRequestTime = React.useRef<number>(0);
+
+  // Listen for cache invalidation events
+  useEffect(() => {
+    const handleCacheInvalidation = () => {
+      // Clear the local cache
+      clearCache();
+      
+      // Force refresh the data only if we're on the leads list page
+      // This prevents unnecessary refreshes when on other pages
+      if (hasInitialData.current && window.location.pathname === '/leads') {
+        const params = {
+          page: currentPage,
+          perPage: 20,
+          sortField,
+          sortOrder: sortDirection,
+          search: searchQuery,
+          currentFilters: latestFiltersRef.current,
+        };
+        fetchData(params, { forceRefresh: true });
+      }
+    };
+
+    const handleWindowFocus = () => {
+      // Refresh data when window gains focus (user returns to tab)
+      if (hasInitialData.current && window.location.pathname === '/leads') {
+        const params = {
+          page: currentPage,
+          perPage: 20,
+          sortField,
+          sortOrder: sortDirection,
+          search: searchQuery,
+          currentFilters: latestFiltersRef.current,
+        };
+        fetchData(params, { background: true }); // Background refresh to avoid loading state
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      // Refresh data when page becomes visible (user navigates back)
+      if (!document.hidden && hasInitialData.current && window.location.pathname === '/leads') {
+        const params = {
+          page: currentPage,
+          perPage: 20,
+          sortField,
+          sortOrder: sortDirection,
+          search: searchQuery,
+          currentFilters: latestFiltersRef.current,
+        };
+        fetchData(params, { background: true }); // Background refresh to avoid loading state
+      }
+    };
+
+    window.addEventListener('leadsCacheInvalidated', handleCacheInvalidation);
+    window.addEventListener('focus', handleWindowFocus);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      window.removeEventListener('leadsCacheInvalidated', handleCacheInvalidation);
+      window.removeEventListener('focus', handleWindowFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [clearCache, fetchData, currentPage, sortField, sortDirection, searchQuery]);
 
   // Save page state before navigation
   const savePageState = useCallback(() => {
@@ -361,6 +424,22 @@ const LeadsList: React.FC = () => {
     }
   }, [leadFilters]);
 
+  const handleAddLeadModalClose = useCallback(() => {
+    setIsAddLeadModalOpen(false);
+    // Force refresh data when modal is closed
+    if (hasInitialData.current) {
+      const params = {
+        page: currentPage,
+        perPage: 20,
+        sortField,
+        sortOrder: sortDirection,
+        search: searchQuery,
+        currentFilters: latestFiltersRef.current,
+      };
+      fetchData(params, { forceRefresh: true });
+    }
+  }, [currentPage, sortField, sortDirection, searchQuery, fetchData]);
+
   return (
     <>
       <div className="p-2">
@@ -635,7 +714,7 @@ const LeadsList: React.FC = () => {
 
       <AddLeadModal
         isOpen={isAddLeadModalOpen}
-        onClose={() => setIsAddLeadModalOpen(false)}
+        onClose={handleAddLeadModalClose}
       />
     </>
   );

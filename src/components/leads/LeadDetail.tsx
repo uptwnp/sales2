@@ -33,6 +33,7 @@ const LeadDetail: React.FC = () => {
   const { getLeadById, getTodosByLeadId, updateLead, setActiveLeadId, fetchSingleLead, isLoading } =
     useAppContext();
 
+  // Get lead from global state, but don't re-render when global state changes
   const lead = getLeadById(leadId);
   const todos = getTodosByLeadId(leadId);
 
@@ -189,6 +190,25 @@ const LeadDetail: React.FC = () => {
     </div>
   );
 
+  // Show loading state while fetching lead
+  if (isLoading || isFetchingLead || !editedLead) {
+    return (
+      <div className="p-2 md:p-4 pt-6 sm:p-4">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">
+              {isFetchingLead ? 'Fetching lead details...' : 'Loading lead details...'}
+            </p>
+            {!editedLead && !isFetchingLead && (
+              <p className="text-sm text-gray-500 mt-2">Lead not found</p>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-2 md:p-4 pt-6 sm:p-4">
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -210,9 +230,9 @@ const LeadDetail: React.FC = () => {
               </button>
             </div>
             <div className="text-sm text-gray-600">
-              <span>{editedLead.address}</span>
-              <span> - {editedLead.about}</span>-{' '}
-              <span>{formatDateTime(editedLead.updatedAt)}</span>
+              <span>{editedLead.address || 'No address'}</span>
+              {editedLead.about && <span> - {editedLead.about}</span>}
+              <span> - {formatDateTime(editedLead.updatedAt)}</span>
             </div>
 
             <div className="flex flex-wrap gap-2 mt-4">
