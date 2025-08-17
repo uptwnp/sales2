@@ -3,7 +3,6 @@ import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import App from './App.tsx';
 import './index.css';
-import { AppProvider } from './contexts/AppContext';
 import { registerSW } from 'virtual:pwa-register';
 
 // Enhanced PWA registration with update handling
@@ -29,9 +28,7 @@ const updateSW = registerSW({
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <BrowserRouter>
-      <AppProvider>
-        <App />
-      </AppProvider>
+      <App />
     </BrowserRouter>
   </StrictMode>
 );
