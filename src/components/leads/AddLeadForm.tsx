@@ -3,8 +3,6 @@ import { useForm } from '../../hooks';
 import { Form, FormField, FormSection, FormActions } from '../ui';
 import { Lead } from '../../types';
 import { dropdownOptions } from '../../data/options';
-import TagInput from '../common/TagInput';
-import { tagOptions } from '../../data/options';
 import Dropdown from '../common/Dropdown';
 import { formatPhoneNumber, getClipboardText, setClipboardText, isValidPhoneNumber } from '../../utils/phone';
 
@@ -24,7 +22,7 @@ const initialState: AddLeadFormData = {
   name: '',
   phone: '',
   stage: 'Init - General Enquiry',
-  intent: '',
+  intent: 'Warm',
   budget: 0,
   preferredLocation: [],
   preferredSize: [],
@@ -36,7 +34,7 @@ const initialState: AddLeadFormData = {
   about: '',
   segment: 'Panipat',
   source: 'Organic Social Media',
-  priority: '',
+  priority: '3',
   tags: [],
   assignedTo: [],
 };
@@ -121,15 +119,6 @@ const AddLeadForm: React.FC<AddLeadFormProps> = ({
               value={values.source}
               onChange={(value) => handleChange('source', value)}
               placeholder="Select source"
-            />
-          </FormField>
-
-          <FormField label="Tags">
-            <TagInput
-              options={tagOptions.tags}
-              value={values.tags ?? []}
-              onChange={(value) => handleChange('tags', value)}
-              placeholder="Add tags"
             />
           </FormField>
 
