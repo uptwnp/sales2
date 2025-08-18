@@ -2,6 +2,8 @@ import React, { useEffect } from 'react';
 import { useForm } from '../../hooks';
 import { Form, FormField, FormSection, FormActions } from '../ui';
 import { Lead } from '../../types';
+import TagInput from '../common/TagInput';
+import { tagOptions } from '../../data/options';
 import { dropdownOptions } from '../../data/options';
 import Dropdown from '../common/Dropdown';
 import { formatPhoneNumber, getClipboardText, setClipboardText, isValidPhoneNumber } from '../../utils/phone';
@@ -122,6 +124,15 @@ const AddLeadForm: React.FC<AddLeadFormProps> = ({
             />
           </FormField>
 
+          <FormField label="Tags">
+            <TagInput
+              options={tagOptions.tags}
+              value={values.tags ?? []}
+              onChange={(value) => handleChange('tags', value)}
+              placeholder="Add tags"
+            />
+          </FormField>
+          
           <FormField label="Note">
             <textarea
               value={values.note}
