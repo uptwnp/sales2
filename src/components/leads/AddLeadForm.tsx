@@ -36,7 +36,7 @@ const initialState: AddLeadFormData = {
   about: '',
   segment: 'Panipat',
   source: 'Organic Social Media',
-  priority: '',
+  priority: '3',
   tags: [],
   assignedTo: [],
 };
