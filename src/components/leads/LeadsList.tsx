@@ -568,6 +568,7 @@ const LeadsList: React.FC = () => {
                   </th>
                   <th className="table-header">Tags</th>
                   <th className="table-header">Tasks</th>
+                  <th className="table-header">Note</th>
                   <th className="table-header">Type</th>
                   <th className="table-header">Location</th>
                   <th className="table-header">Requirements</th>
@@ -578,7 +579,7 @@ const LeadsList: React.FC = () => {
                 {leads.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={10}
+                      colSpan={11}
                       className="px-6 py-8 text-center text-gray-500"
                     >
                       {searchQuery
@@ -631,6 +632,9 @@ const LeadsList: React.FC = () => {
                           label={`${getTodosByLeadId(lead.id).length}`}
                           color="blue"
                         />
+                      </td>
+                      <td className="table-cell truncate max-w-[220px]">
+                        {lead.note || '—'}
                       </td>
                       <td className="table-cell">
                         <div className="flex items-center space-x-1 truncate">
