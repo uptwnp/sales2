@@ -12,6 +12,7 @@ import {
   ChevronDown,
   ChevronUp,
   Calendar,
+  Copy,
 } from 'lucide-react';
 import { useAppContext } from '../../contexts/AppContext';
 import { Lead, Todo } from '../../types';
@@ -60,6 +61,14 @@ const LeadDetail: React.FC = () => {
     };
     setCollapsedSections(newState);
     localStorage.setItem('collapsedSections', JSON.stringify(newState));
+  };
+
+  const copyPhoneNumber = async (phoneNumber: string) => {
+    try {
+      await navigator.clipboard.writeText(phoneNumber);
+    } catch (err) {
+      // Silent fail - no user feedback needed
+    }
   };
 
   // Fetch lead if not found in current state
@@ -248,6 +257,13 @@ const LeadDetail: React.FC = () => {
                 <MessageSquare size={18} />
               </a>
               <button
+                className="btn btn-outline"
+                onClick={() => copyPhoneNumber(editedLead.phone)}
+                title="Copy phone number"
+              >
+                <Copy size={18} />
+              </button>
+              <button
                 className="btn btn-primary"
                 onClick={() => setIsAddTodoModalOpen(true)}
               >
@@ -267,9 +283,9 @@ const LeadDetail: React.FC = () => {
             </div>
           </div>
 
-          <div className="block bg-white p-2">
+          <div className="block bg-white p-4">
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
                 Stage
               </label>
               <Dropdown
@@ -279,8 +295,8 @@ const LeadDetail: React.FC = () => {
                 placeholder="Select stage"
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
                 Priority
               </label>
               <Dropdown
@@ -288,6 +304,18 @@ const LeadDetail: React.FC = () => {
                 value={editedLead.priority}
                 onChange={(value) => handleImmediateChange('priority', value)}
                 placeholder="Select priority"
+              />
+            </div>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Note
+              </label>
+              <textarea
+                className="input resize-none"
+                rows={3}
+                value={editedLead.note || ''}
+                onChange={(e) => handleImmediateChange('note', e.target.value)}
+                placeholder="Add a note..."
               />
             </div>
           </div>
@@ -620,19 +648,6 @@ const LeadDetail: React.FC = () => {
                     placeholder="Select segment"
                   />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Note
-                  </label>
-                  <textarea
-                    value={editedLead.note || ''}
-                    onChange={(e) => handleInputChange('note', e.target.value)}
-                    onBlur={(e) => handleInputBlur('note', e.target.value)}
-                    className="input h-24"
-                    placeholder="Enter general notes"
-                  />
-                </div>
-
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Intent

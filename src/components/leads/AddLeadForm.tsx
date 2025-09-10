@@ -115,6 +115,15 @@ const AddLeadForm: React.FC<AddLeadFormProps> = ({
             />
           </FormField>
 
+          <FormField label="Source" required>
+            <Dropdown
+              options={dropdownOptions.source}
+              value={values.source}
+              onChange={(value) => handleChange('source', value)}
+              placeholder="Select source"
+            />
+          </FormField>
+
           <FormField label="Tags">
             <TagInput
               options={tagOptions.tags}
@@ -141,15 +150,6 @@ const AddLeadForm: React.FC<AddLeadFormProps> = ({
               className="input h-16"
               placeholder="Additional notes or comments"
               rows={2}
-            />
-          </FormField>
-
-          <FormField label="Source" required>
-            <Dropdown
-              options={dropdownOptions.source}
-              value={values.source}
-              onChange={(value) => handleChange('source', value)}
-              placeholder="Select source"
             />
           </FormField>
         </div>

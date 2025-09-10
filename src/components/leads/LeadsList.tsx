@@ -8,6 +8,7 @@ import {
   X,
   ArrowUp,
   ArrowDown,
+  Copy,
 } from 'lucide-react';
 import { useAppContext } from '../../contexts/AppContext';
 import LeadFilterModal from './LeadFilterModal';
@@ -560,6 +561,7 @@ const LeadsList: React.FC = () => {
                   e.stopPropagation();
                   window.open(`tel:${lead.phone}`);
                 }}
+                title="Call"
               >
                 <Phone size={16} />
               </button>
@@ -569,8 +571,19 @@ const LeadsList: React.FC = () => {
                   e.stopPropagation();
                   window.open(`https://wa.me/${lead.phone}`);
                 }}
+                title="WhatsApp"
               >
                 <MessageSquare size={16} />
+              </button>
+              <button
+                className="p-1 text-gray-600 hover:text-purple-600 rounded-full hover:bg-purple-50 transition-colors duration-200"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  copyPhoneNumber(lead.phone);
+                }}
+                title="Copy phone number"
+              >
+                <Copy size={16} />
               </button>
             </div>
           </td>
@@ -654,6 +667,14 @@ const LeadsList: React.FC = () => {
       fetchData(params, { forceRefresh: true });
     }
   }, [currentPage, sortField, sortDirection, searchQuery, fetchData]);
+
+  const copyPhoneNumber = async (phoneNumber: string) => {
+    try {
+      await navigator.clipboard.writeText(phoneNumber);
+    } catch (err) {
+      // Silent fail - no user feedback needed
+    }
+  };
 
   // Expose column settings modal to parent component
   React.useEffect(() => {
