@@ -1,5 +1,5 @@
 import React from 'react';
-import { Menu, Search, Bell, Filter } from 'lucide-react';
+import { Menu, Search, Bell, Filter, Settings } from 'lucide-react';
 
 interface HeaderProps {
   title: string;
@@ -7,6 +7,8 @@ interface HeaderProps {
   onOpenFilter?: () => void;
   showFilter?: boolean;
   onSearch?: (query: string) => void;
+  onOpenColumnSettings?: () => void;
+  showColumnSettings?: boolean;
 }
 
 const Header: React.FC<HeaderProps> = ({
@@ -15,6 +17,8 @@ const Header: React.FC<HeaderProps> = ({
   onOpenFilter,
   showFilter = false,
   onSearch,
+  onOpenColumnSettings,
+  showColumnSettings = false,
 }) => {
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (onSearch) {
@@ -57,6 +61,16 @@ const Header: React.FC<HeaderProps> = ({
             className="p-2 rounded-md text-gray-500 hover:text-gray-900 hover:bg-gray-100 focus:outline-none"
           >
             <Filter size={20} />
+          </button>
+        )}
+
+        {showColumnSettings && onOpenColumnSettings && (
+          <button
+            onClick={onOpenColumnSettings}
+            className="p-2 rounded-md text-gray-500 hover:text-gray-900 hover:bg-gray-100 focus:outline-none"
+            title="Column Settings"
+          >
+            <Settings size={20} />
           </button>
         )}
 

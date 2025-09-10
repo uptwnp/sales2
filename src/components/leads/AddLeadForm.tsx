@@ -28,10 +28,10 @@ const initialState: AddLeadFormData = {
   budget: 0,
   preferredLocation: [],
   preferredSize: [],
+  address: '',
   note: '',
   requirementDescription: '',
   propertyType: [],
-  purchaseTimeline: '',
   purpose: '',
   about: '',
   segment: 'Panipat',
@@ -115,15 +115,6 @@ const AddLeadForm: React.FC<AddLeadFormProps> = ({
             />
           </FormField>
 
-          <FormField label="Source" required>
-            <Dropdown
-              options={dropdownOptions.source}
-              value={values.source}
-              onChange={(value) => handleChange('source', value)}
-              placeholder="Select source"
-            />
-          </FormField>
-
           <FormField label="Tags">
             <TagInput
               options={tagOptions.tags}
@@ -132,13 +123,33 @@ const AddLeadForm: React.FC<AddLeadFormProps> = ({
               placeholder="Add tags"
             />
           </FormField>
+
+          <FormField label="Address">
+            <input
+              type="text"
+              value={values.address}
+              onChange={(e) => handleChange('address', e.target.value)}
+              className="input"
+              placeholder="Enter lead's address (optional)"
+            />
+          </FormField>
           
           <FormField label="Note">
             <textarea
               value={values.note}
               onChange={(e) => handleChange('note', e.target.value)}
-              className="input h-24"
+              className="input h-16"
               placeholder="Additional notes or comments"
+              rows={2}
+            />
+          </FormField>
+
+          <FormField label="Source" required>
+            <Dropdown
+              options={dropdownOptions.source}
+              value={values.source}
+              onChange={(value) => handleChange('source', value)}
+              placeholder="Select source"
             />
           </FormField>
         </div>
@@ -154,7 +165,7 @@ const AddLeadForm: React.FC<AddLeadFormProps> = ({
         </button>
         <button
           type="submit"
-          className="btn btn-primary"
+          className="btn btn-primary w-full"
           disabled={isSubmitting}
         >
           {isSubmitting ? 'Adding Lead...' : 'Add Lead'}

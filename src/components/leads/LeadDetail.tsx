@@ -445,35 +445,6 @@ const LeadDetail: React.FC = () => {
                       placeholder="Select purpose"
                     />
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Purchase Timeline
-                    </label>
-                    <Dropdown
-                      options={dropdownOptions.purchaseTimeline}
-                      value={editedLead.purchaseTimeline}
-                      onChange={(value) =>
-                        handleImmediateChange('purchaseTimeline', value)
-                      }
-                      placeholder="Select timeline"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Interested In
-                    </label>
-                    <input
-                      type="text"
-                      value={editedLead.interestedIn || ''}
-                      onChange={(e) =>
-                        handleInputChange('interestedIn', e.target.value)
-                      }
-                      onBlur={(e) =>
-                        handleInputBlur('interestedIn', e.target.value)
-                      }
-                      className="input"
-                    />
-                  </div>
                 </div>
               </div>
             )}
@@ -664,22 +635,6 @@ const LeadDetail: React.FC = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Not Interested In
-                  </label>
-                  <input
-                    type="text"
-                    value={editedLead.notInterestedIn || ''}
-                    onChange={(e) =>
-                      handleInputChange('notInterestedIn', e.target.value)
-                    }
-                    onBlur={(e) =>
-                      handleInputBlur('notInterestedIn', e.target.value)
-                    }
-                    className="input"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
                     Intent
                   </label>
                   <Dropdown
@@ -745,31 +700,6 @@ const LeadDetail: React.FC = () => {
             {renderSectionHeader('Additional Data', 'additional')}
             {!collapsedSections['additional'] && (
               <div className="p-2 md:p-4 space-y-4 transition-all duration-300">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Medium
-                  </label>
-                  <Dropdown
-                    options={dropdownOptions.medium}
-                    value={editedLead.medium || ''}
-                    onChange={(value) => handleImmediateChange('medium', value)}
-                    placeholder="Select medium"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Placement
-                  </label>
-                  <Dropdown
-                    options={dropdownOptions.placement}
-                    value={editedLead.placement || ''}
-                    onChange={(value) =>
-                      handleImmediateChange('placement', value)
-                    }
-                    placeholder="Select placement"
-                  />
-                </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Data 1

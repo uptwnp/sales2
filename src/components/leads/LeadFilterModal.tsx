@@ -21,7 +21,6 @@ const LeadFilterModal: React.FC<LeadFilterModalProps> = ({ isOpen, onClose }) =>
   const [source, setSource] = useState('');
   const [segment, setSegment] = useState('');
   const [purpose, setPurpose] = useState('');
-  const [purchaseTimeline, setPurchaseTimeline] = useState('');
   const [propertyTypes, setPropertyTypes] = useState<string[]>([]);
   const [preferredSizes, setPreferredSizes] = useState<string[]>([]);
   const [tags, setTags] = useState<string[]>([]);
@@ -50,9 +49,6 @@ const LeadFilterModal: React.FC<LeadFilterModalProps> = ({ isOpen, onClose }) =>
     }
     if (purpose) {
       newFilters.push({ field: 'purpose', operator: '=', value: purpose });
-    }
-    if (purchaseTimeline) {
-      newFilters.push({ field: 'purchaseTimeline', operator: '=', value: purchaseTimeline });
     }
     if (propertyTypes.length > 0) {
       newFilters.push({ field: 'propertyType', operator: '=', value: propertyTypes });
@@ -159,15 +155,6 @@ const LeadFilterModal: React.FC<LeadFilterModalProps> = ({ isOpen, onClose }) =>
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Purchase Timeline</label>
-            <Dropdown
-              options={dropdownOptions.purchaseTimeline}
-              value={purchaseTimeline}
-              onChange={setPurchaseTimeline}
-              placeholder="All Timelines"
-            />
-          </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Property Type</label>

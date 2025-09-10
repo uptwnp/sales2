@@ -18,12 +18,6 @@ export type TodoType =
 
 export type TodoStatus = 'Pending' | 'Completed' | 'Cancelled' | 'Overdue';
 
-export type PurchaseTimeline =
-  | 'ASAP'
-  | '1 Month'
-  | '3 Months'
-  | '6 Months'
-  | '1 Year';
 
 export type Priority = 'Low' | 'Medium' | 'High' | 'Urgent';
 
@@ -36,9 +30,7 @@ export type Source =
   | 'Instagram'
   | 'Other';
 
-export type Medium = 'Post' | 'Story' | 'Reel' | 'Direct' | 'Other';
 
-export type Placement = 'Main Page' | 'Story' | 'Search' | 'Other';
 
 export type NextAction =
   | 'Call Back'
@@ -74,18 +66,14 @@ export interface Lead {
   note?: string;
   requirementDescription?: string;
   propertyType: string[];
-  purchaseTimeline: PurchaseTimeline;
   purpose: Purpose;
   about?: string;
   segment: Segment;
   source: Source;
-  medium?: Medium;
-  placement?: Placement;
   priority: Priority;
   nextAction?: NextAction;
   nextActionNote?: string;
-  interestedIn?: string;
-  notInterestedIn?: string;
+  intent?: string;
   listName?: string;
   tags: string[];
   assignedTo: string[];

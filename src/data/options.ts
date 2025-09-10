@@ -137,12 +137,6 @@ export const sourceOptions = [
   "Other Organic Search",
 ].map(createOption);
 
-export const mediumOptions = ["Post", "Story", "Reel", "Direct", "Other"].map(
-  createOption
-);
-export const placementOptions = ["Main Page", "Story", "Search", "Other"].map(
-  createOption
-);
 export const nextActionOptions = [
   "Call Back",
   "Schedule Visit",
@@ -168,14 +162,6 @@ export const todoTypeOptions = [
   "Other",
 ].map(createOption);
 
-// === Changed to uniform .map(createOption) ===
-export const purchaseTimelineOptions: Option[] = [
-  "ASAP",
-  "1 Month",
-  "3 Months",
-  "6 Months",
-  "1 Year",
-].map(createOption);
 
 export const intentOptions: Option[] = [
   "Zero",
@@ -322,12 +308,9 @@ export const dropdownOptions = {
   stage: toDropdownOptions(stageOptions),
   priority: toDropdownOptions(priorityOptions),
   source: toDropdownOptions(sourceOptions),
-  medium: toDropdownOptions(mediumOptions),
-  placement: toDropdownOptions(placementOptions),
   nextAction: toDropdownOptions(nextActionOptions),
   segment: toDropdownOptions(segmentOptions),
   purpose: toDropdownOptions(purposeOptions),
-  purchaseTimeline: toDropdownOptions(purchaseTimelineOptions),
   intent: toDropdownOptions(intentOptions),
   todoType: toDropdownOptions(todoTypeOptions),
   todoStatus: toDropdownOptions(todoStatusOptions),

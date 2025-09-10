@@ -15,10 +15,12 @@ import AddLeadModal from './AddLeadModal';
 import Badge from '../ui/Badge';
 import { usePersistentState } from '../../hooks/usePersistentState';
 import { useOptimizedDataFetching } from '../../hooks/useOptimizedDataFetching';
+import { useColumnSettings } from '../../hooks/useColumnSettings';
 import { Lead } from '../../types';
 import { dropdownOptions, tagOptions } from '../../data/options';
 import Dropdown from '../common/Dropdown';
 import TagInput from '../common/TagInput';
+import ColumnSettingsModal from './ColumnSettingsModal';
 
 type SortField = 'id' | 'name' | 'budget' | 'stage' | 'created_at';
 type SortDirection = 'asc' | 'desc';
@@ -48,6 +50,16 @@ const LeadsList: React.FC = () => {
   // Use persistent state for leads section
   const { state, updateState, clearFilters, clearSearch, clearAll, updateFilters } = usePersistentState('leads');
   const { currentPage, sortField, sortDirection, searchQuery, filters: savedFilters } = state;
+
+  // Use column settings
+  const {
+    columns: columnConfigs,
+    updateColumns,
+    isModalOpen: isColumnSettingsModalOpen,
+    openModal: openColumnSettingsModal,
+    closeModal: closeColumnSettingsModal,
+    getVisibleColumns,
+  } = useColumnSettings();
 
   // Use optimized data fetching with caching
   const {
@@ -365,6 +377,209 @@ const LeadsList: React.FC = () => {
     return sortDirection === 'asc' ? <ArrowUp size={16} /> : <ArrowDown size={16} />;
   };
 
+  const renderTableHeader = (columnId: string, label: string) => {
+    const sortableFields: SortField[] = ['id', 'name', 'budget', 'stage', 'created_at'];
+    const isSortable = sortableFields.includes(columnId as SortField);
+    
+    if (!isSortable) {
+      return (
+        <th className="table-header">
+          {label}
+        </th>
+      );
+    }
+
+    return (
+      <th
+        className="table-header cursor-pointer"
+        onClick={() => handleSort(columnId as SortField)}
+      >
+        <div className="flex items-center">
+          {label} {renderSortIcon(columnId as SortField)}
+        </div>
+      </th>
+    );
+  };
+
+  const renderTableCell = (lead: Lead, columnId: string) => {
+    switch (columnId) {
+      case 'id':
+        return <td className="table-cell font-medium">{lead.id}</td>;
+      case 'name':
+        return (
+          <td className="table-cell font-medium text-gray-700 truncate max-w-[150px]">
+            {lead.name}
+          </td>
+        );
+      case 'budget':
+        return <td className="table-cell">{lead.budget}L</td>;
+      case 'stage':
+        return (
+          <td className="table-cell">
+            <Badge
+              label={lead.stage}
+              className="table-cell max-w-[150px] truncate"
+              color={
+                lead.stage.includes('Init') ? 'blue' :
+                lead.stage.includes('Mid') ? 'purple' :
+                lead.stage.includes('Mat') ? 'green' :
+                lead.stage.includes('Deal') ? 'yellow' :
+                lead.stage.includes('Neg') ? 'red' :
+                'gray'
+              }
+            />
+          </td>
+        );
+      case 'tags':
+        return (
+          <td className="table-cell">
+            <div className="flex items-center space-x-1 truncate">
+              {lead.tags.length > 0 ? (
+                <span className="text-sm text-gray-600">
+                  {lead.tags.slice(0, 2).join(', ')}
+                  {lead.tags.length > 2 && ` +${lead.tags.length - 2}`}
+                </span>
+              ) : (
+                <span className="text-sm text-gray-400">No tags</span>
+              )}
+            </div>
+          </td>
+        );
+      case 'tasks':
+        return (
+          <td className="table-cell text-center">
+            <Badge
+              label={`${getTodosByLeadId(lead.id).length}`}
+              color="blue"
+            />
+          </td>
+        );
+      case 'note':
+        return (
+          <td className="table-cell truncate max-w-[220px]">
+            {lead.note || '—'}
+          </td>
+        );
+      case 'about':
+        return (
+          <td className="table-cell truncate max-w-[200px]">
+            {lead.about || '—'}
+          </td>
+        );
+      case 'address':
+        return (
+          <td className="table-cell truncate max-w-[200px]">
+            {lead.address || '—'}
+          </td>
+        );
+      case 'priority':
+        return (
+          <td className="table-cell">
+            <Badge
+              label={lead.priority}
+              color={
+                lead.priority === 'Super High' ? 'red' :
+                lead.priority === 'High' ? 'orange' :
+                lead.priority === 'Medium' ? 'yellow' :
+                lead.priority === 'Low' ? 'green' :
+                'gray'
+              }
+            />
+          </td>
+        );
+      case 'purpose':
+        return (
+          <td className="table-cell truncate max-w-[150px]">
+            {lead.purpose || '—'}
+          </td>
+        );
+      case 'segment':
+        return (
+          <td className="table-cell truncate max-w-[150px]">
+            {lead.segment || '—'}
+          </td>
+        );
+      case 'intent':
+        return (
+          <td className="table-cell truncate max-w-[150px]">
+            {lead.intent || '—'}
+          </td>
+        );
+      case 'assignedTo':
+        return (
+          <td className="table-cell truncate max-w-[200px]">
+            {lead.assignedTo.length > 0 ? lead.assignedTo.join(', ') : '—'}
+          </td>
+        );
+      case 'listName':
+        return (
+          <td className="table-cell truncate max-w-[150px]">
+            {lead.listName || '—'}
+          </td>
+        );
+      case 'data1':
+        return (
+          <td className="table-cell truncate max-w-[150px]">
+            {lead.data1 || '—'}
+          </td>
+        );
+      case 'type':
+        return (
+          <td className="table-cell">
+            <div className="flex items-center space-x-1 truncate">
+              {lead.propertyType.length > 0 ? (
+                <span className="text-sm text-gray-600">
+                  {lead.propertyType.slice(0, 2).join(', ')}
+                  {lead.propertyType.length > 2 && ` +${lead.propertyType.length - 2}`}
+                </span>
+              ) : (
+                <span className="text-sm text-gray-400">Any</span>
+              )}
+            </div>
+          </td>
+        );
+      case 'location':
+        return (
+          <td className="table-cell truncate max-w-[200px]">
+            {locationLabel(lead.preferredLocation)}
+          </td>
+        );
+      case 'requirements':
+        return (
+          <td className="table-cell truncate max-w-[200px]">
+            {lead.requirementDescription || 'No description provided'}
+          </td>
+        );
+      case 'actions':
+        return (
+          <td className="table-cell">
+            <div className="flex space-x-2">
+              <button
+                className="p-1 text-gray-600 hover:text-blue-600 rounded-full hover:bg-blue-50 transition-colors duration-200"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  window.open(`tel:${lead.phone}`);
+                }}
+              >
+                <Phone size={16} />
+              </button>
+              <button
+                className="p-1 text-gray-600 hover:text-green-600 rounded-full hover:bg-green-50 transition-colors duration-200"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  window.open(`https://wa.me/${lead.phone}`);
+                }}
+              >
+                <MessageSquare size={16} />
+              </button>
+            </div>
+          </td>
+        );
+      default:
+        return <td className="table-cell">—</td>;
+    }
+  };
+
   // Handle desktop filter changes
   const handleDesktopStageChange = useCallback((value: string) => {
     setDesktopStage(value);
@@ -439,6 +654,18 @@ const LeadsList: React.FC = () => {
       fetchData(params, { forceRefresh: true });
     }
   }, [currentPage, sortField, sortDirection, searchQuery, fetchData]);
+
+  // Expose column settings modal to parent component
+  React.useEffect(() => {
+    const handleOpenColumnSettings = () => {
+      openColumnSettingsModal();
+    };
+
+    window.addEventListener('openColumnSettings', handleOpenColumnSettings);
+    return () => {
+      window.removeEventListener('openColumnSettings', handleOpenColumnSettings);
+    };
+  }, [openColumnSettingsModal]);
 
   return (
     <>
@@ -534,52 +761,18 @@ const LeadsList: React.FC = () => {
             <table className="min-w-full divide-y divide-gray-200">
               <thead>
                 <tr className="bg-gray-50">
-                  <th
-                    className="table-header cursor-pointer"
-                    onClick={() => handleSort('id')}
-                  >
-                    <div className="flex items-center">
-                      ID {renderSortIcon('id')}
-                    </div>
-                  </th>
-                  <th
-                    className="table-header cursor-pointer"
-                    onClick={() => handleSort('name')}
-                  >
-                    <div className="flex items-center">
-                      Name {renderSortIcon('name')}
-                    </div>
-                  </th>
-                  <th
-                    className="table-header cursor-pointer"
-                    onClick={() => handleSort('budget')}
-                  >
-                    <div className="flex items-center">
-                      Budget {renderSortIcon('budget')}
-                    </div>
-                  </th>
-                  <th
-                    className="table-header cursor-pointer"
-                    onClick={() => handleSort('stage')}
-                  >
-                    <div className="flex items-center w-20">
-                      Stage {renderSortIcon('stage')}
-                    </div>
-                  </th>
-                  <th className="table-header">Tags</th>
-                  <th className="table-header">Tasks</th>
-                  <th className="table-header">Note</th>
-                  <th className="table-header">Type</th>
-                  <th className="table-header">Location</th>
-                  <th className="table-header">Requirements</th>
-                  <th className="table-header">Actions</th>
+                  {getVisibleColumns().map((column) => (
+                    <React.Fragment key={column.id}>
+                      {renderTableHeader(column.id, column.label)}
+                    </React.Fragment>
+                  ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {leads.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={11}
+                      colSpan={getVisibleColumns().length}
                       className="px-6 py-8 text-center text-gray-500"
                     >
                       {searchQuery
@@ -594,90 +787,11 @@ const LeadsList: React.FC = () => {
                       className="hover:bg-gray-50 cursor-pointer transition-all duration-200 ease-in-out"
                       onClick={() => handleLeadClick(lead.id)}
                     >
-                      <td className="table-cell font-medium">{lead.id}</td>
-                      <td className="table-cell font-medium text-gray-700 truncate max-w-[150px]">
-                        {lead.name}
-                      </td>
-                      <td className="table-cell">{lead.budget}L</td>
-                      <td className="table-cell">
-                        <Badge
-                          label={lead.stage}
-                          className="table-cell max-w-[150px] truncate"
-                          color={
-                            lead.stage.includes('Init') ? 'blue' :
-                            lead.stage.includes('Mid') ? 'purple' :
-                            lead.stage.includes('Mat') ? 'green' :
-                            lead.stage.includes('Deal') ? 'yellow' :
-                            lead.stage.includes('Neg') ? 'red' :
-                            'gray' // for 'Other' or anything else
-                          }
-                        />
-                      </td>
-                      <td className="table-cell">
-                        <div className="flex items-center space-x-1 truncate">
-                          {lead.tags.length > 0 ? (
-                            <>
-                              <span className="text-sm text-gray-600">
-                                {lead.tags.slice(0, 2).join(', ')}
-                                {lead.tags.length > 2 && ` +${lead.tags.length - 2}`}
-                              </span>
-                            </>
-                          ) : (
-                            <span className="text-sm text-gray-400">No tags</span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="table-cell text-center">
-                        <Badge
-                          label={`${getTodosByLeadId(lead.id).length}`}
-                          color="blue"
-                        />
-                      </td>
-                      <td className="table-cell truncate max-w-[220px]">
-                        {lead.note || '—'}
-                      </td>
-                      <td className="table-cell">
-                        <div className="flex items-center space-x-1 truncate">
-                          {lead.propertyType.length > 0 ? (
-                            <>
-                              <span className="text-sm text-gray-600">
-                                {lead.propertyType.slice(0, 2).join(', ')}
-                                {lead.propertyType.length > 2 && ` +${lead.propertyType.length - 2}`}
-                              </span>
-                            </>
-                          ) : (
-                            <span className="text-sm text-gray-400">Any</span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="table-cell truncate max-w-[200px]">
-                        {locationLabel(lead.preferredLocation)}
-                      </td>
-                      <td className="table-cell truncate max-w-[200px]">
-                        {lead.requirementDescription || 'No description provided'}
-                      </td>
-                      <td className="table-cell">
-                        <div className="flex space-x-2">
-                          <button
-                            className="p-1 text-gray-600 hover:text-blue-600 rounded-full hover:bg-blue-50 transition-colors duration-200"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              window.open(`tel:${lead.phone}`);
-                            }}
-                          >
-                            <Phone size={16} />
-                          </button>
-                          <button
-                            className="p-1 text-gray-600 hover:text-green-600 rounded-full hover:bg-green-50 transition-colors duration-200"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              window.open(`https://wa.me/${lead.phone}`);
-                            }}
-                          >
-                            <MessageSquare size={16} />
-                          </button>
-                        </div>
-                      </td>
+                      {getVisibleColumns().map((column) => (
+                        <React.Fragment key={column.id}>
+                          {renderTableCell(lead, column.id)}
+                        </React.Fragment>
+                      ))}
                     </tr>
                   ))
                 )}
@@ -719,6 +833,13 @@ const LeadsList: React.FC = () => {
       <AddLeadModal
         isOpen={isAddLeadModalOpen}
         onClose={handleAddLeadModalClose}
+      />
+
+      <ColumnSettingsModal
+        isOpen={isColumnSettingsModalOpen}
+        onClose={closeColumnSettingsModal}
+        columns={columnConfigs}
+        onColumnsChange={updateColumns}
       />
     </>
   );

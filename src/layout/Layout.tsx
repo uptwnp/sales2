@@ -30,6 +30,11 @@ const Layout: React.FC = () => {
   }, [location]);
 
   const showFilterButton = location.pathname === '/leads' || location.pathname === '/tasks';
+  const showColumnSettingsButton = location.pathname === '/leads';
+
+  const handleOpenColumnSettings = () => {
+    window.dispatchEvent(new CustomEvent('openColumnSettings'));
+  };
 
   return (
     <div className="h-screen flex overflow-hidden bg-gray-100">
@@ -57,6 +62,8 @@ const Layout: React.FC = () => {
           title={getPageTitle()} 
           onOpenSidebar={() => setIsSidebarOpen(true)}
           showFilter={showFilterButton}
+          showColumnSettings={showColumnSettingsButton}
+          onOpenColumnSettings={handleOpenColumnSettings}
         />
         
         <main className="flex-1 relative overflow-y-auto focus:outline-none">

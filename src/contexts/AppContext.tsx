@@ -17,7 +17,6 @@ import {
   segmentOptions,
   todoTypeOptions,
   todoStatusOptions,
-  purchaseTimelineOptions,
   intentOptions,
   getOptionByApiValue,
   getOptionByValue,
@@ -40,17 +39,12 @@ interface ApiLead {
   preferred_type: string | null;
   purpose: string | null;
   stage: string;
-  when_buy: string | null;
   priority: string | null;
   next_action: string | null;
   next_action_note: string | null;
-  interested_in: string | null;
   intent: string | null;
-  not_interested_in: string | null;
   assigned_to: string | null;
   source: string | null;
-  medium: string | null;
-  placement: string | null;
   list_name: string | null;
   tags: string | null;
   data_1: string | null;
@@ -201,9 +195,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
     propertyType: apiLead.preferred_type
       ? apiLead.preferred_type.split(",")
       : [],
-    purchaseTimeline:
-      getOptionByApiValue(purchaseTimelineOptions, apiLead.when_buy)?.value ||
-      "",
     intent: getOptionByApiValue(intentOptions, apiLead.intent)?.value || "",
     purpose:
       getOptionByApiValue(purposeOptions, apiLead.purpose)?.value || "Other",
@@ -392,12 +383,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
                 );
                 break;
 
-              case "purchaseTimeline":
-                queryParams.append(
-                  "when_buy",
-                  getApiValue(purchaseTimelineOptions, filter.value as string)
-                );
-                break;
 
               case "intent":
                 queryParams.append(
@@ -552,7 +537,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
         note: lead.note,
         requirement_description: lead.requirementDescription,
         preferred_type: lead.propertyType.join(","),
-        when_buy: getApiValue(purchaseTimelineOptions, lead.purchaseTimeline),
         purpose: getApiValue(purposeOptions, lead.purpose),
         about_him: lead.about,
         segment: getApiValue(segmentOptions, lead.segment),
@@ -658,30 +642,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
         apiUpdate.stage = getApiValue(stageOptions, leadUpdate.stage);
       if (leadUpdate.intent !== undefined)
         apiUpdate.intent = getApiValue(intentOptions, leadUpdate.intent);
-      if (leadUpdate.purchaseTimeline !== undefined)
-        apiUpdate.when_buy = getApiValue(
-          purchaseTimelineOptions,
-          leadUpdate.purchaseTimeline
-        );
       if (leadUpdate.priority !== undefined)
         apiUpdate.priority = getApiValue(priorityOptions, leadUpdate.priority);
       if (leadUpdate.nextAction !== undefined)
         apiUpdate.next_action = leadUpdate.nextAction;
       if (leadUpdate.nextActionNote !== undefined)
         apiUpdate.next_action_note = leadUpdate.nextActionNote;
-      if (leadUpdate.interestedIn !== undefined)
-        apiUpdate.interested_in = leadUpdate.interestedIn;
       if (leadUpdate.ourRating !== undefined)
         apiUpdate.ourRating = leadUpdate.ourRating;
-      if (leadUpdate.notInterestedIn !== undefined)
-        apiUpdate.not_interested_in = leadUpdate.notInterestedIn;
       if (leadUpdate.assignedTo !== undefined)
         apiUpdate.assigned_to = leadUpdate.assignedTo.join(",");
       if (leadUpdate.source !== undefined)
         apiUpdate.source = getApiValue(sourceOptions, leadUpdate.source);
-      if (leadUpdate.medium !== undefined) apiUpdate.medium = leadUpdate.medium;
-      if (leadUpdate.placement !== undefined)
-        apiUpdate.placement = leadUpdate.placement;
       if (leadUpdate.listName !== undefined)
         apiUpdate.list_name = leadUpdate.listName;
       if (leadUpdate.tags !== undefined)
