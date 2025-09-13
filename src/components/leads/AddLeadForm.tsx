@@ -39,6 +39,7 @@ const initialState: AddLeadFormData = {
   priority: '3',
   tags: [],
   assignedTo: [],
+  data3: '1', // Default to sync contacts
 };
 
 const AddLeadForm: React.FC<AddLeadFormProps> = ({
@@ -67,6 +68,28 @@ const AddLeadForm: React.FC<AddLeadFormProps> = ({
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const input = e.target.value.replace(/\D/g, '').slice(0, 10);
     handleChange('phone', input);
+  };
+
+  const handleBudgetChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const budget = parseFloat(e.target.value);
+    handleChange('budget', budget);
+  };
+
+  const handleBudgetBlur = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const budget = parseFloat(e.target.value);
+    
+    // Auto-manage contact sync based on budget
+    if (budget < 70 && values.data3 === '1') {
+      // Auto-uncheck contact sync if budget is below 70
+      handleChange('data3', '');
+    } else if (budget >= 70 && values.data3 !== '1') {
+      // Auto-check contact sync if budget is 70 or more
+      handleChange('data3', '1');
+    }
+  };
+
+  const handleContactSyncChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    handleChange('data3', e.target.checked ? '1' : '');
   };
 
   return (
@@ -99,7 +122,8 @@ const AddLeadForm: React.FC<AddLeadFormProps> = ({
             <input
               type="number"
               value={values.budget}
-              onChange={(e) => handleChange('budget', parseFloat(e.target.value))}
+              onChange={handleBudgetChange}
+              onBlur={handleBudgetBlur}
               className="input"
               placeholder="Enter budget amount"
               min="0"
@@ -152,6 +176,19 @@ const AddLeadForm: React.FC<AddLeadFormProps> = ({
               rows={2}
             />
           </FormField>
+
+          <div className="flex items-center space-x-2">
+            <input
+              type="checkbox"
+              id="contactSync"
+              checked={values.data3 === '1'}
+              onChange={handleContactSyncChange}
+              className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+            />
+            <label htmlFor="contactSync" className="text-sm font-medium text-gray-700">
+              Keep updated with Contacts
+            </label>
+          </div>
         </div>
       </FormSection>
 

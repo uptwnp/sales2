@@ -314,7 +314,8 @@ const LeadDetail: React.FC = () => {
                 className="input resize-none"
                 rows={3}
                 value={editedLead.note || ''}
-                onChange={(e) => handleImmediateChange('note', e.target.value)}
+                onChange={(e) => handleInputChange('note', e.target.value)}
+                onBlur={(e) => handleInputBlur('note', e.target.value)}
                 placeholder="Add a note..."
               />
             </div>
@@ -752,6 +753,19 @@ const LeadDetail: React.FC = () => {
                     onBlur={(e) => handleInputBlur('data3', e.target.value)}
                     className="input"
                   />
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="contactSyncDetail"
+                    checked={editedLead.data3 === '1'}
+                    onChange={(e) => handleImmediateChange('data3', e.target.checked ? '1' : '')}
+                    className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+                  />
+                  <label htmlFor="contactSyncDetail" className="text-sm font-medium text-gray-700">
+                    Keep updated with Contacts
+                  </label>
                 </div>
                 <div className="text-sm text-gray-600">
                   <span>Created: {formatDateTime(editedLead.createdAt)}</span>

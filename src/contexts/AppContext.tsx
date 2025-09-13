@@ -528,6 +528,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
         name: lead.name,
         phone: lead.phone,
         alternative_contact_details: lead.alternatePhone,
+        address: lead.address,
         stage: getApiValue(stageOptions, lead.stage),
         ourRating: lead.ourRating,
         intent: getApiValue(intentOptions, lead.intent),
@@ -544,9 +545,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
         priority: getApiValue(priorityOptions, lead.priority),
         tags: lead.tags.join(","),
         assigned_to: lead.assignedTo.join(","),
-        data1: lead.data1,
-        data2: lead.data2,
-        data3: lead.data3,
+        data_1: lead.data1,
+        data_2: lead.data2,
+        data_3: lead.data3,
       };
 
       const response = await fetch(`${API_BASE_URL}/?action=add_lead`, {
@@ -567,8 +568,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
           updatedAt: new Date().toISOString(),
         };
 
-        // Update the contact API
-        await updateContactAPI(newLead);
+        // Update the contact API only if data3 is '1' (sync enabled)
+        if (newLead.data3 === '1') {
+          await updateContactAPI(newLead);
+        }
 
         // Invalidate cache and fetch fresh data
         invalidateLeadsCache();
@@ -687,7 +690,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
           contactFields.includes(key)
         );
 
-        if (needsContactUpdate) {
+        // Only update contact API if data3 is '1' (sync enabled) and contact fields changed
+        if (needsContactUpdate && updatedLead.data3 === '1') {
           await updateContactAPI(updatedLead);
         }
 
