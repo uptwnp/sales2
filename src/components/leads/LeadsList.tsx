@@ -22,18 +22,17 @@ import { dropdownOptions } from '../../data/options';
 import Dropdown from '../common/Dropdown';
 import TagInput from '../common/TagInput';
 import ColumnSettingsModal from './ColumnSettingsModal';
+import { getWhatsAppUrl } from '../../utils/phone';
 
 type SortField = 'id' | 'name' | 'budget' | 'stage' | 'created_at';
-type SortDirection = 'asc' | 'desc';
+
 
 const LeadsList: React.FC = () => {
   const {
-    getFilteredLeads,
     leadFilters,
     clearLeadFilters,
     removeLeadFilter,
     fetchLeads,
-    isLoading: contextLoading,
     getTodosByLeadId,
     setLeadFilters,
     options
@@ -50,7 +49,7 @@ const LeadsList: React.FC = () => {
   const [desktopSegment, setDesktopSegment] = useState('');
 
   // Use persistent state for leads section
-  const { state, updateState, clearFilters, clearSearch, clearAll, updateFilters } = usePersistentState('leads');
+  const { state, updateState, clearAll, updateFilters } = usePersistentState('leads');
   const { currentPage, sortField, sortDirection, searchQuery, filters: savedFilters } = state;
 
   // Use column settings
@@ -320,28 +319,9 @@ const LeadsList: React.FC = () => {
     updateState({ currentPage: newPage });
   }, [updateState]);
 
-  const handleClearFilters = useCallback(() => {
-    clearLeadFilters();
-    clearFilters();
-    // Clear global cache to force fresh data fetch
-    // globalLeadsCache.current = []; // This line is removed
-    // Force refresh data when filters are cleared
-    if (hasInitialData.current) {
-      const params = {
-        page: currentPage,
-        perPage: 20,
-        sortField,
-        sortOrder: sortDirection,
-        search: searchQuery,
-        currentFilters: [],
-      };
-      fetchData(params, { forceRefresh: true });
-    }
-  }, [clearLeadFilters, clearFilters, currentPage, sortField, sortDirection, searchQuery, fetchData]);
 
-  const handleClearSearch = useCallback(() => {
-    updateState({ searchQuery: '', currentPage: 1 });
-  }, [updateState]);
+
+
 
   const handleClearAll = useCallback(() => {
     clearLeadFilters();
@@ -362,11 +342,7 @@ const LeadsList: React.FC = () => {
     }
   }, [clearLeadFilters, clearAll, currentPage, sortField, sortDirection, fetchData]);
 
-  const propertyTypeLabel = (types: string[]) => {
-    if (types.length === 0) return "Any";
-    if (types.length === 1) return types[0];
-    return `${types[0]} +${types.length - 1}`;
-  };
+
 
   const locationLabel = (locations: string[]) => {
     if (locations.length === 0) return "Any";
@@ -482,9 +458,10 @@ const LeadsList: React.FC = () => {
               color={
                 lead.priority === 'Super High' ? 'red' :
                   lead.priority === 'High' ? 'orange' :
-                    lead.priority === 'Medium' ? 'yellow' :
-                      lead.priority === 'Low' ? 'green' :
-                        'gray'
+                    lead.priority === 'Focus' ? 'yellow' :
+                      lead.priority === 'General' ? 'blue' :
+                        lead.priority === 'Low' ? 'green' :
+                          'gray'
               }
             />
           </td>
@@ -570,7 +547,7 @@ const LeadsList: React.FC = () => {
                 className="p-1 text-gray-600 hover:text-green-600 rounded-full hover:bg-green-50 transition-colors duration-200"
                 onClick={(e) => {
                   e.stopPropagation();
-                  window.open(`https://wa.me/${lead.phone}`);
+                  window.open(getWhatsAppUrl(lead.phone));
                 }}
                 title="WhatsApp"
               >
@@ -803,7 +780,7 @@ const LeadsList: React.FC = () => {
                     </td>
                   </tr>
                 ) : (
-                  leads.map((lead, index) => (
+                  leads.map((lead) => (
                     <tr
                       key={lead.id}
                       className="hover:bg-gray-50 cursor-pointer transition-all duration-200 ease-in-out"

@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { useForm } from '../../hooks';
 import { Form, FormField, FormSection, FormActions } from '../ui';
 import { Lead, LeadStage, Purpose, Source, Priority } from '../../types';
@@ -7,7 +7,7 @@ import TagInput from '../common/TagInput';
 import { dropdownOptions } from '../../data/options';
 import { useAppContext } from '../../contexts/AppContext';
 import Dropdown from '../common/Dropdown';
-import { formatPhoneNumber, getClipboardText, setClipboardText, isValidPhoneNumber } from '../../utils/phone';
+import { formatPhoneNumber, getClipboardText, isValidPhoneNumber } from '../../utils/phone';
 
 type AddLeadFormData = Omit<Lead, 'id' | 'createdAt' | 'updatedAt'> & {
   name?: string;
@@ -69,7 +69,12 @@ const AddLeadForm: React.FC<AddLeadFormProps> = ({
   }, []);
 
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const input = e.target.value.replace(/\D/g, '').slice(0, 10);
+    let input = e.target.value;
+    const hasPlus = input.startsWith('+');
+    input = input.replace(/\D/g, '').slice(0, 15);
+    if (hasPlus) {
+      input = '+' + input;
+    }
     handleChange('phone', input);
   };
 
@@ -105,9 +110,9 @@ const AddLeadForm: React.FC<AddLeadFormProps> = ({
               value={values.phone}
               onChange={handlePhoneChange}
               className="input"
-              placeholder="Enter phone number"
+              placeholder="Enter phone number (6-15 digits)"
               required
-              maxLength={10}
+              maxLength={16}
             />
           </FormField>
 
@@ -137,7 +142,7 @@ const AddLeadForm: React.FC<AddLeadFormProps> = ({
             <Dropdown
               options={dropdownOptions.segment}
               value={values.segment}
-              onChange={(value: Lead['segment']) => handleChange('segment', value)}
+              onChange={(value: string) => handleChange('segment', value)}
               placeholder="Select segment"
             />
           </FormField>
@@ -146,7 +151,7 @@ const AddLeadForm: React.FC<AddLeadFormProps> = ({
             <Dropdown
               options={dropdownOptions.source}
               value={values.source}
-              onChange={(value: Source) => handleChange('source', value as Source)}
+              onChange={(value: string) => handleChange('source', value as Source)}
               placeholder="Select source"
             />
           </FormField>

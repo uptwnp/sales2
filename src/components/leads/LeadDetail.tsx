@@ -24,6 +24,7 @@ import TodoActionModal from '../todos/TodoActionModal';
 import { format } from 'date-fns';
 import Dropdown from '../common/Dropdown';
 import TagInput from '../common/TagInput';
+import { getWhatsAppUrl } from '../../utils/phone';
 
 import { dropdownOptions } from '../../data/options';
 
@@ -165,6 +166,16 @@ const LeadDetail: React.FC = () => {
     updateLead(leadId, { [field]: updatedValue });
   };
 
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let input = e.target.value;
+    const hasPlus = input.startsWith('+');
+    input = input.replace(/\D/g, '').slice(0, 15);
+    if (hasPlus) {
+      input = '+' + input;
+    }
+    handleInputChange('phone', input);
+  };
+
   const formatDateTime = (dateString: string) => {
     return format(new Date(dateString), 'dd MMM yyyy, h:mm a');
   };
@@ -250,7 +261,7 @@ const LeadDetail: React.FC = () => {
                 <Phone size={18} />
               </a>
               <a
-                href={`https://wa.me/${editedLead.phone}`}
+                href={getWhatsAppUrl(editedLead.phone)}
                 className="btn btn-success"
                 target="_blank"
                 rel="noopener noreferrer"
@@ -507,11 +518,10 @@ const LeadDetail: React.FC = () => {
                     <input
                       type="tel"
                       value={editedLead.phone}
-                      onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                        handleInputChange('phone', e.target.value)
-                      }
+                      onChange={handlePhoneChange}
                       onBlur={(e: React.FocusEvent<HTMLInputElement>) => handleInputBlur('phone', e.target.value)}
                       className="input"
+                      placeholder="Enter phone number (6-15 digits)"
                     />
                   </div>
 
