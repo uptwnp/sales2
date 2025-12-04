@@ -18,7 +18,7 @@ import { usePersistentState } from '../../hooks/usePersistentState';
 import { useOptimizedDataFetching } from '../../hooks/useOptimizedDataFetching';
 import { useColumnSettings } from '../../hooks/useColumnSettings';
 import { Lead } from '../../types';
-import { dropdownOptions, tagOptions } from '../../data/options';
+import { dropdownOptions } from '../../data/options';
 import Dropdown from '../common/Dropdown';
 import TagInput from '../common/TagInput';
 import ColumnSettingsModal from './ColumnSettingsModal';
@@ -27,17 +27,18 @@ type SortField = 'id' | 'name' | 'budget' | 'stage' | 'created_at';
 type SortDirection = 'asc' | 'desc';
 
 const LeadsList: React.FC = () => {
-  const { 
-    getFilteredLeads, 
-    leadFilters, 
-    clearLeadFilters, 
-    removeLeadFilter, 
-    fetchLeads, 
-    isLoading: contextLoading, 
+  const {
+    getFilteredLeads,
+    leadFilters,
+    clearLeadFilters,
+    removeLeadFilter,
+    fetchLeads,
+    isLoading: contextLoading,
     getTodosByLeadId,
-    setLeadFilters
+    setLeadFilters,
+    options
   } = useAppContext();
-  
+
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
   const [isAddLeadModalOpen, setIsAddLeadModalOpen] = useState(false);
   const [totalLeads, setTotalLeads] = useState(0);
@@ -100,7 +101,7 @@ const LeadsList: React.FC = () => {
     const handleCacheInvalidation = () => {
       // Clear the local cache
       clearCache();
-      
+
       // Force refresh the data only if we're on the leads list page
       // This prevents unnecessary refreshes when on other pages
       if (hasInitialData.current && window.location.pathname === '/leads') {
@@ -149,7 +150,7 @@ const LeadsList: React.FC = () => {
     window.addEventListener('leadsCacheInvalidated', handleCacheInvalidation);
     window.addEventListener('focus', handleWindowFocus);
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    
+
     return () => {
       window.removeEventListener('leadsCacheInvalidated', handleCacheInvalidation);
       window.removeEventListener('focus', handleWindowFocus);
@@ -205,7 +206,7 @@ const LeadsList: React.FC = () => {
         search: searchQuery,
         currentFilters: latestFiltersRef.current,
       };
-      
+
       // This will check cache first and return cached data if available
       fetchData(params);
       hasInitialData.current = true;
@@ -237,10 +238,10 @@ const LeadsList: React.FC = () => {
       if (filtersCleared) {
         filtersClearedRef.current = true;
       }
-      
+
       // Reset last request params when filters change significantly
       lastRequestParams.current = '';
-      
+
       // Update persistent state with new filters
       updateFilters(leadFilters);
       prevFiltersRef.current = leadFilters;
@@ -271,18 +272,18 @@ const LeadsList: React.FC = () => {
 
       // Create a unique key for this request
       const requestKey = JSON.stringify(params);
-      
+
       // Prevent duplicate requests with the same parameters
       if (lastRequestParams.current === requestKey) {
         return;
       }
-      
+
       // Debounce: prevent requests that are too close together
       const now = Date.now();
       if (now - lastRequestTime.current < 500) { // 500ms minimum between requests
         return;
       }
-      
+
       lastRequestParams.current = requestKey;
       lastRequestTime.current = now;
 
@@ -381,7 +382,7 @@ const LeadsList: React.FC = () => {
   const renderTableHeader = (columnId: string, label: string) => {
     const sortableFields: SortField[] = ['id', 'name', 'budget', 'stage', 'created_at'];
     const isSortable = sortableFields.includes(columnId as SortField);
-    
+
     if (!isSortable) {
       return (
         <th className="table-header">
@@ -422,11 +423,11 @@ const LeadsList: React.FC = () => {
               className="table-cell max-w-[150px] truncate"
               color={
                 lead.stage.includes('Init') ? 'blue' :
-                lead.stage.includes('Mid') ? 'purple' :
-                lead.stage.includes('Mat') ? 'green' :
-                lead.stage.includes('Deal') ? 'yellow' :
-                lead.stage.includes('Neg') ? 'red' :
-                'gray'
+                  lead.stage.includes('Mid') ? 'purple' :
+                    lead.stage.includes('Mat') ? 'green' :
+                      lead.stage.includes('Deal') ? 'yellow' :
+                        lead.stage.includes('Neg') ? 'red' :
+                          'gray'
               }
             />
           </td>
@@ -480,10 +481,10 @@ const LeadsList: React.FC = () => {
               label={lead.priority}
               color={
                 lead.priority === 'Super High' ? 'red' :
-                lead.priority === 'High' ? 'orange' :
-                lead.priority === 'Medium' ? 'yellow' :
-                lead.priority === 'Low' ? 'green' :
-                'gray'
+                  lead.priority === 'High' ? 'orange' :
+                    lead.priority === 'Medium' ? 'yellow' :
+                      lead.priority === 'Low' ? 'green' :
+                        'gray'
               }
             />
           </td>
@@ -596,7 +597,7 @@ const LeadsList: React.FC = () => {
   // Handle desktop filter changes
   const handleDesktopStageChange = useCallback((value: string) => {
     setDesktopStage(value);
-    
+
     // Update filters
     const newFilters = leadFilters.filter(filter => filter.field !== 'stage');
     if (value) {
@@ -607,7 +608,7 @@ const LeadsList: React.FC = () => {
 
   const handleDesktopTagsChange = useCallback((tags: string[]) => {
     setDesktopTags(tags);
-    
+
     // Update filters
     const newFilters = leadFilters.filter(filter => filter.field !== 'tags');
     if (tags.length > 0) {
@@ -618,7 +619,7 @@ const LeadsList: React.FC = () => {
 
   const handleDesktopSegmentChange = useCallback((value: string) => {
     setDesktopSegment(value);
-    
+
     // Update filters
     const newFilters = leadFilters.filter(filter => filter.field !== 'segment');
     if (value) {
@@ -632,13 +633,13 @@ const LeadsList: React.FC = () => {
     const stageFilter = leadFilters.find(filter => filter.field === 'stage');
     const tagsFilter = leadFilters.find(filter => filter.field === 'tags');
     const segmentFilter = leadFilters.find(filter => filter.field === 'segment');
-    
+
     if (stageFilter) {
       setDesktopStage(stageFilter.value as string);
     } else {
       setDesktopStage('');
     }
-    
+
     if (tagsFilter) {
       setDesktopTags(Array.isArray(tagsFilter.value) ? tagsFilter.value : [tagsFilter.value as string]);
     } else {
@@ -704,7 +705,7 @@ const LeadsList: React.FC = () => {
                   onChange={handleSearch}
                 />
               </div>
-              
+
               <div className="flex space-x-2 flex-shrink-0">
                 <button
                   className="btn btn-outline flex items-center h-10 px-3"
@@ -721,7 +722,7 @@ const LeadsList: React.FC = () => {
                 </button>
               </div>
             </div>
-            
+
             {/* Desktop-only filters in same line */}
             <div className="hidden md:flex md:space-x-2 md:flex-1">
               <div className="flex-1 max-w-xs">
@@ -742,7 +743,7 @@ const LeadsList: React.FC = () => {
               </div>
               <div className="flex-1 max-w-xs">
                 <TagInput
-                  options={tagOptions.tags}
+                  options={options.tags}
                   value={desktopTags}
                   onChange={handleDesktopTagsChange}
                   placeholder="Select tags..."

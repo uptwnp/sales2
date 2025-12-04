@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Modal from '../common/Modal';
 import { useAppContext } from '../../contexts/AppContext';
 import { FilterOption } from '../../types/o-index';
-import { dropdownOptions, tagOptions } from '../../data/options';
+import { dropdownOptions } from '../../data/options';
 import Dropdown from '../common/Dropdown';
 import TagInput from '../common/TagInput';
 import { X } from 'lucide-react';
@@ -13,7 +13,7 @@ interface LeadFilterModalProps {
 }
 
 const LeadFilterModal: React.FC<LeadFilterModalProps> = ({ isOpen, onClose }) => {
-  const { leadFilters, setLeadFilters, clearLeadFilters } = useAppContext();
+  const { leadFilters, setLeadFilters, clearLeadFilters, options } = useAppContext();
   const [activeFilters, setActiveFilters] = useState<FilterOption[]>(leadFilters);
 
   const [stage, setStage] = useState('');
@@ -86,7 +86,6 @@ const LeadFilterModal: React.FC<LeadFilterModalProps> = ({ isOpen, onClose }) =>
     setSource('');
     setSegment('');
     setPurpose('');
-    setPurchaseTimeline('');
     setPropertyTypes([]);
     setPreferredSizes([]);
     setTags([]);
@@ -159,7 +158,7 @@ const LeadFilterModal: React.FC<LeadFilterModalProps> = ({ isOpen, onClose }) =>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Property Type</label>
             <TagInput
-              options={tagOptions.propertyType}
+              options={options.propertyType}
               value={propertyTypes}
               onChange={setPropertyTypes}
               placeholder="Select property types..."
@@ -169,7 +168,7 @@ const LeadFilterModal: React.FC<LeadFilterModalProps> = ({ isOpen, onClose }) =>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Size</label>
             <TagInput
-              options={tagOptions.preferredSize}
+              options={options.preferredSize}
               value={preferredSizes}
               onChange={setPreferredSizes}
               placeholder="Select sizes..."
@@ -179,7 +178,7 @@ const LeadFilterModal: React.FC<LeadFilterModalProps> = ({ isOpen, onClose }) =>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Tags</label>
             <TagInput
-              options={tagOptions.tags}
+              options={options.tags}
               value={tags}
               onChange={setTags}
               placeholder="Select tags..."
@@ -189,7 +188,7 @@ const LeadFilterModal: React.FC<LeadFilterModalProps> = ({ isOpen, onClose }) =>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Assigned To</label>
             <TagInput
-              options={tagOptions.assignedTo}
+              options={options.assignedTo}
               value={assignedTo}
               onChange={setAssignedTo}
               placeholder="Select team members..."
@@ -204,14 +203,14 @@ const LeadFilterModal: React.FC<LeadFilterModalProps> = ({ isOpen, onClose }) =>
                 placeholder="Min"
                 className="input"
                 value={budget.min || ''}
-                onChange={(e) => setBudget({ ...budget, min: e.target.value })}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setBudget({ ...budget, min: e.target.value })}
               />
               <input
                 type="number"
                 placeholder="Max"
                 className="input"
                 value={budget.max || ''}
-                onChange={(e) => setBudget({ ...budget, max: e.target.value })}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setBudget({ ...budget, max: e.target.value })}
               />
             </div>
           </div>
@@ -241,13 +240,13 @@ const LeadFilterModal: React.FC<LeadFilterModalProps> = ({ isOpen, onClose }) =>
       </div>
 
       <div className="flex justify-end mt-6 space-x-3">
-        <button 
+        <button
           className="btn btn-outline"
           onClick={handleClearFilters}
         >
           Clear Filters
         </button>
-        <button 
+        <button
           className="btn btn-primary"
           onClick={handleApplyFilters}
         >

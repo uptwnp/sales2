@@ -1,11 +1,21 @@
 export type LeadStage =
-  | 'Fresh Lead'
-  | 'Contacted'
-  | 'Qualified'
-  | 'Proposal'
-  | 'Negotiation'
-  | 'Closed Won'
-  | 'Closed Lost';
+  | 'Init - Fresh'
+  | 'Init - Not Connected Yet'
+  | 'Init - General Enquiry'
+  | 'Mid - Exploring'
+  | 'Mat - Follow Up'
+  | 'Mat - In Pipeline'
+  | 'Mat - In Closure'
+  | 'Mat - Re Exploring'
+  | 'Deal - Closed'
+  | 'Neg - Low Bids'
+  | 'Neg - Budget Issue'
+  | 'Neg - Unrealistic'
+  | 'Neg - Req Closed'
+  | 'Neg - Invalid'
+  | 'Neg - Lost'
+  | 'Neg - Useless'
+  | 'Other';
 
 export type TodoType =
   | 'Follow Up'
@@ -19,16 +29,35 @@ export type TodoType =
 export type TodoStatus = 'Pending' | 'Completed' | 'Cancelled' | 'Overdue';
 
 
-export type Priority = 'Low' | 'Medium' | 'High' | 'Urgent';
+export type Priority = 'Super High' | 'High' | 'Focus' | 'General' | 'Low' | 'Avoid' | 'Never Attend';
 
 export type Source =
+  | 'Organic Social Media'
+  | 'Youtube'
   | 'Referral'
+  | 'GMB Others'
+  | 'Website Others'
+  | 'Our GMB'
   | 'Website'
+  | 'M3M'
+  | 'Trident'
+  | 'Dealer Network'
   | 'Social Media'
   | 'Cold Call'
-  | 'Facebook'
-  | 'Instagram'
-  | 'Other';
+  | 'Olx'
+  | 'Offline Meet'
+  | 'Property DB'
+  | 'Shoping'
+  | 'Other'
+  | 'Groups'
+  | 'Ads Display'
+  | 'Ads Search'
+  | 'Many Chats'
+  | 'Listings'
+  | 'Physical World'
+  | 'Holdings'
+  | 'Other Organic Display'
+  | 'Other Organic Search';
 
 
 
@@ -39,7 +68,7 @@ export type NextAction =
   | 'Meeting'
   | 'Other';
 
-export type Segment = 
+export type Segment =
   | 'Panipat'
   | 'Panipat Projects'
   | 'Panipat Investors'

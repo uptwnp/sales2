@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import Modal from '../common/Modal';
 import { useAppContext } from '../../contexts/AppContext';
 import { Todo, DropdownOption } from '../../types';
-import { tagOptions } from '../../data/options';
 import TagInput from '../common/TagInput';
 
 interface AddActivityModalProps {
@@ -12,14 +11,14 @@ interface AddActivityModalProps {
   leadId?: number;
 }
 
-const AddActivityModal: React.FC<AddActivityModalProps> = ({ 
-  isOpen, 
-  onClose, 
+const AddActivityModal: React.FC<AddActivityModalProps> = ({
+  isOpen,
+  onClose,
   leadId
 }) => {
-  const { addTodo, leads } = useAppContext();
+  const { addTodo, leads, options } = useAppContext();
   const navigate = useNavigate();
-  
+
   const initialActivityState: Omit<Todo, 'id' | 'createdAt' | 'updatedAt'> = {
     leadId: leadId || 0,
     type: 'Activity',
@@ -44,11 +43,11 @@ const AddActivityModal: React.FC<AddActivityModalProps> = ({
 
   const handleSubmit = async () => {
     await addTodo(formData);
-    
+
     if (!leadId && formData.leadId) {
       navigate(`/leads/${formData.leadId}`);
     }
-    
+
     setFormData(initialActivityState);
     onClose();
   };
@@ -60,10 +59,7 @@ const AddActivityModal: React.FC<AddActivityModalProps> = ({
     );
   };
 
-  const leadOptions: DropdownOption[] = leads.map(lead => ({
-    value: lead.id.toString(),
-    label: `${lead.id}. ${lead.name}`,
-  }));
+
 
   return (
     <Modal
@@ -78,11 +74,11 @@ const AddActivityModal: React.FC<AddActivityModalProps> = ({
             <label className="block text-sm font-medium text-gray-700 mb-1">Connected Lead *</label>
             <select
               value={formData.leadId}
-              onChange={(e) => setFormData({ ...formData, leadId: parseInt(e.target.value) })}
+              onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setFormData({ ...formData, leadId: parseInt(e.target.value) })}
               className="input"
             >
               <option value={0}>Select a lead</option>
-              {leads.map(lead => (
+              {leads.map((lead: { id: number; name: string }) => (
                 <option key={lead.id} value={lead.id}>
                   {lead.id}. {lead.name}
                 </option>
@@ -90,7 +86,7 @@ const AddActivityModal: React.FC<AddActivityModalProps> = ({
             </select>
           </div>
         )}
-        
+
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Description *</label>
           <textarea
@@ -106,16 +102,16 @@ const AddActivityModal: React.FC<AddActivityModalProps> = ({
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Participants</label>
           <TagInput
-            options={tagOptions.participants}
+            options={options.participants}
             value={formData.participants}
-            onChange={(value) => handleTagChange('participants', value)}
+            onChange={(value: string[]) => handleTagChange('participants', value)}
             placeholder="Add participants"
           />
         </div>
       </div>
-      
+
       <div className="flex justify-end mt-6">
-        <button 
+        <button
           type="button"
           className="btn btn-primary"
           onClick={handleSubmit}

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Modal from '../common/Modal';
 import { useAppContext } from '../../contexts/AppContext';
 import { Todo, DropdownOption } from '../../types';
-import { dropdownOptions, tagOptions } from '../../data/options';
+import { dropdownOptions } from '../../data/options';
 import Dropdown from '../common/Dropdown';
 import TagInput from '../common/TagInput';
 import QuickDateTimeInput from '../common/QuickDateTimeInput';
@@ -15,20 +15,20 @@ interface AddTodoModalProps {
   defaultType?: Todo['type'];
 }
 
-const AddTodoModal: React.FC<AddTodoModalProps> = ({ 
-  isOpen, 
-  onClose, 
+const AddTodoModal: React.FC<AddTodoModalProps> = ({
+  isOpen,
+  onClose,
   leadId,
   defaultType
 }) => {
-  const { addTodo, leads } = useAppContext();
+  const { addTodo, leads, options } = useAppContext();
   const navigate = useNavigate();
-  
+
   const getInitialTodoState = (): Omit<Todo, 'id' | 'createdAt' | 'updatedAt'> => {
     // Create tomorrow at 11 AM in local time
     const now = new Date();
     const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 11, 0, 0, 0);
-    
+
     return {
       leadId: leadId || 0,
       type: defaultType || 'Follow Up',
@@ -71,11 +71,11 @@ const AddTodoModal: React.FC<AddTodoModalProps> = ({
 
   const handleSubmit = async () => {
     await addTodo(formData);
-    
+
     if (!leadId && formData.leadId) {
       navigate(`/leads/${formData.leadId}`);
     }
-    
+
     setFormData(getInitialTodoState());
     onClose();
   };
@@ -95,7 +95,7 @@ const AddTodoModal: React.FC<AddTodoModalProps> = ({
     };
   }, [formData.dateTime]);
 
-  const leadOptions: DropdownOption[] = leads.map(lead => ({
+  const leadOptions: DropdownOption[] = leads.map((lead: { id: number; name: string }) => ({
     value: lead.id.toString(),
     label: `${lead.id}. ${lead.name}`,
   }));
@@ -114,24 +114,24 @@ const AddTodoModal: React.FC<AddTodoModalProps> = ({
             <Dropdown
               options={leadOptions}
               value={formData.leadId.toString()}
-              onChange={(value) => setFormData({ ...formData, leadId: parseInt(value) })}
+              onChange={(value: string) => setFormData({ ...formData, leadId: parseInt(value) })}
               placeholder="Select a lead"
             />
           </div>
         )}
-        
+
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Task Type *</label>
           <Dropdown
             options={dropdownOptions.todoType}
             value={formData.type}
-            onChange={(value) => setFormData({ ...formData, type: value as Todo['type'] })}
+            onChange={(value: string) => setFormData({ ...formData, type: value as Todo['type'] })}
             placeholder="Select task type"
           />
         </div>
-        
 
-        
+
+
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
           <textarea
@@ -142,7 +142,7 @@ const AddTodoModal: React.FC<AddTodoModalProps> = ({
             placeholder="Enter task description"
           />
         </div>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <QuickDateTimeInput
@@ -153,7 +153,7 @@ const AddTodoModal: React.FC<AddTodoModalProps> = ({
               required
             />
           </div>
-          
+
           <div>
             <QuickDateTimeInput
               type="time"
@@ -164,20 +164,20 @@ const AddTodoModal: React.FC<AddTodoModalProps> = ({
             />
           </div>
         </div>
-        
+
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Participants</label>
           <TagInput
-            options={tagOptions.participants}
+            options={options.participants}
             value={formData.participants}
-            onChange={(value) => handleTagChange('participants', value)}
+            onChange={(value: string[]) => handleTagChange('participants', value)}
             placeholder="Add participants"
           />
         </div>
       </div>
-      
+
       <div className="flex justify-end mt-6">
-        <button 
+        <button
           type="button"
           className="btn btn-primary"
           onClick={handleSubmit}

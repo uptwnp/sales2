@@ -18,6 +18,8 @@ import {
   todoTypeOptions,
   todoStatusOptions,
   intentOptions,
+  tagOptions,
+  Option,
   getOptionByApiValue,
   getOptionByValue,
   getApiValue,
@@ -77,6 +79,16 @@ interface ApiResponse<T> {
   message?: string;
 }
 
+export interface AppOptions {
+  preferredLocation: Option[];
+  preferredSize: Option[];
+  propertyType: Option[];
+  tags: Option[];
+  assignedTo: Option[];
+  participants: Option[];
+  lists: Option[];
+}
+
 interface AppContextType {
   leads: Lead[];
   todos: Todo[];
@@ -122,12 +134,14 @@ interface AppContextType {
     sortOrder?: "asc" | "desc";
   }) => Promise<void>;
   invalidateLeadsCache: () => void; // Add this new function
+  options: AppOptions;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 const API_BASE_URL = "https://prop.digiheadway.in/api/v3";
 const CONTACT_API_URL = "https://prop.digiheadway.in/api/create_contact.php";
+const OPTIONS_API_URL = "https://prop.digiheadway.in/api/v3/options.php";
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({
   children,
@@ -139,6 +153,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
   const [activeLeadId, setActiveLeadId] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [options, setOptions] = useState<AppOptions>({
+    ...tagOptions,
+    lists: [],
+  });
 
   // Global cache for leads data that persists across component re-mounts
   const globalLeadsCache = useRef<{
@@ -331,7 +349,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
         search,
         filters: currentFilters.sort((a, b) => a.field.localeCompare(b.field))
       });
-      
+
       const cacheAge = Date.now() - globalLeadsCache.current.timestamp;
       const cacheValid = cacheAge < 2 * 60 * 1000; // 2 minutes cache
 
@@ -370,8 +388,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
               case "stage":
                 const stageApiValue = getApiValue(stageOptions, filter.value as string);
                 // If the stage value doesn't match any known stage, use "Other" as fallback
-                const finalStageValue = stageApiValue === filter.value && !stageOptions.find(opt => opt.value === filter.value) 
-                  ? "Other" 
+                const finalStageValue = stageApiValue === filter.value && !stageOptions.find(opt => opt.value === filter.value)
+                  ? "Other"
                   : stageApiValue;
                 queryParams.append("stage", finalStageValue);
                 break;
@@ -443,9 +461,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
             const transformedLeads: Lead[] = apiResponse.data.map((item: ApiLead) =>
               transformApiLeadToLead(item)
             );
-            
+
             const total = apiResponse.total || 0;
-            
+
             // Store in global cache with the stable cache key
             globalLeadsCache.current = {
               data: transformedLeads,
@@ -453,7 +471,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
               timestamp: Date.now(),
               total: total
             };
-            
+
             setLeads(transformedLeads);
             return { data: transformedLeads, total: total }; // Return both data and total
           } else {
@@ -474,6 +492,36 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
   // Only fetch todos once on mount
   useEffect(() => {
     fetchTodos();
+    fetchOptions();
+  }, []);
+
+  const fetchOptions = useCallback(async () => {
+    try {
+      const response = await fetch(OPTIONS_API_URL);
+      if (!response.ok) throw new Error("Failed to fetch options");
+      const data = await response.json();
+
+      const createOption = (value: string): Option => ({
+        value,
+        label: value,
+        apiValue: value,
+      });
+
+      const newTags = (data.tags || []).map(createOption);
+      const newAssignedTo = (data.assigned_to || []).map(createOption);
+      const newLists = (data.lists || []).map(createOption);
+
+      setOptions((prev: AppOptions) => ({
+        ...prev,
+        tags: newTags.length > 0 ? newTags : prev.tags,
+        assignedTo: newAssignedTo.length > 0 ? newAssignedTo : prev.assignedTo,
+        participants: newAssignedTo.length > 0 ? newAssignedTo : prev.participants,
+        lists: newLists,
+      }));
+    } catch (err) {
+      console.error("Error fetching options:", err);
+      // We don't set global error here to avoid blocking the UI if options fail
+    }
   }, []);
 
   const updateContactAPI = async (lead: Lead) => {
@@ -575,7 +623,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
 
         // Invalidate cache and fetch fresh data
         invalidateLeadsCache();
-        
+
         // Fetch fresh data
         await fetchLeads().then(result => {
           // Update the leads state with the new data
@@ -697,7 +745,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
 
         // Update the lead in the local state
         setLeads(leads.map((lead) => (lead.id === id ? updatedLead : lead)));
-        
+
         // Only invalidate cache if we're not on the lead detail page
         // This prevents unnecessary refreshes when editing lead details
         if (activeLeadId !== id) {
@@ -707,7 +755,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
           // This updates the global cache without triggering LeadsList refresh
           invalidateLeadsCache({ skipEvent: true });
         }
-        
+
         toast.success("Lead updated successfully");
       } else {
         throw new Error(data.message || "Failed to update lead");
@@ -955,7 +1003,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
       timestamp: 0,
       total: 0
     };
-    
+
     // Only dispatch event if not skipped
     if (!options?.skipEvent) {
       // Dispatch a custom event to notify components to clear their local cache
@@ -992,6 +1040,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
     fetchSingleLead,
     fetchTodos,
     invalidateLeadsCache, // Add this to the context value
+    options,
   };
 
   return (

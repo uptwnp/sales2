@@ -11,7 +11,7 @@ import {
   X,
   ChevronDown,
   ChevronUp,
-  Calendar,
+
   Copy,
 } from 'lucide-react';
 import { useAppContext } from '../../contexts/AppContext';
@@ -24,14 +24,15 @@ import TodoActionModal from '../todos/TodoActionModal';
 import { format } from 'date-fns';
 import Dropdown from '../common/Dropdown';
 import TagInput from '../common/TagInput';
-import { dropdownOptions, tagOptions } from '../../data/options';
+
+import { dropdownOptions } from '../../data/options';
 
 const LeadDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const leadId = id ? parseInt(id) : 0;
   const navigate = useNavigate();
 
-  const { getLeadById, getTodosByLeadId, updateLead, setActiveLeadId, fetchSingleLead, isLoading } =
+  const { getLeadById, getTodosByLeadId, updateLead, setActiveLeadId, fetchSingleLead, isLoading, options } =
     useAppContext();
 
   // Get lead from global state, but don't re-render when global state changes
@@ -87,7 +88,7 @@ const LeadDetail: React.FC = () => {
       // to prevent overwriting local changes.
       if (editedLead && editedLead.id === lead.id) {
         if (editedLead.updatedAt !== lead.updatedAt) {
-          setEditedLead((prev) => ({ ...prev!, updatedAt: lead.updatedAt }));
+          setEditedLead((prev: Lead | null) => ({ ...prev!, updatedAt: lead.updatedAt }));
         }
       } else {
         // This is for initial load or for a new lead
@@ -144,7 +145,7 @@ const LeadDetail: React.FC = () => {
   }
 
   const handleInputChange = (field: keyof Lead, value: any) => {
-    setEditedLead((prev) => {
+    setEditedLead((prev: Lead | null) => {
       if (!prev) return prev;
       return { ...prev, [field]: value };
     });
@@ -157,7 +158,7 @@ const LeadDetail: React.FC = () => {
 
   const handleImmediateChange = (field: keyof Lead, value: any) => {
     const updatedValue = value?.trim?.() !== '' ? value : null;
-    setEditedLead((prev) => {
+    setEditedLead((prev: Lead | null) => {
       if (!prev) return prev;
       return { ...prev, [field]: updatedValue };
     });
@@ -182,8 +183,8 @@ const LeadDetail: React.FC = () => {
     setIsActionModalOpen(true);
   };
 
-  const pendingTodos = todos.filter((todo) => todo.status === 'Pending');
-  const completedTodos = todos.filter((todo) => todo.status !== 'Pending');
+  const pendingTodos = todos.filter((todo: Todo) => todo.status === 'Pending');
+  const completedTodos = todos.filter((todo: Todo) => todo.status !== 'Pending');
 
   const renderSectionHeader = (title: string, section: string) => (
     <div
@@ -314,8 +315,8 @@ const LeadDetail: React.FC = () => {
                 className="input resize-none"
                 rows={3}
                 value={editedLead.note || ''}
-                onChange={(e) => handleInputChange('note', e.target.value)}
-                onBlur={(e) => handleInputBlur('note', e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => handleInputChange('note', e.target.value)}
+                onBlur={(e: React.FocusEvent<HTMLTextAreaElement>) => handleInputBlur('note', e.target.value)}
                 placeholder="Add a note..."
               />
             </div>
@@ -388,7 +389,7 @@ const LeadDetail: React.FC = () => {
                       Property Type
                     </label>
                     <TagInput
-                      options={tagOptions.propertyType}
+                      options={options.propertyType}
                       value={editedLead.propertyType ?? []}
                       onChange={(value) =>
                         handleImmediateChange('propertyType', value)
@@ -403,10 +404,10 @@ const LeadDetail: React.FC = () => {
                     <input
                       type="number"
                       value={editedLead.budget}
-                      onChange={(e) =>
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                         handleInputChange('budget', parseFloat(e.target.value))
                       }
-                      onBlur={(e) =>
+                      onBlur={(e: React.FocusEvent<HTMLInputElement>) =>
                         handleInputBlur('budget', parseFloat(e.target.value))
                       }
                       className="input"
@@ -420,13 +421,13 @@ const LeadDetail: React.FC = () => {
                   </label>
                   <textarea
                     value={editedLead.requirementDescription || ''}
-                    onChange={(e) =>
+                    onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
                       handleInputChange(
                         'requirementDescription',
                         e.target.value
                       )
                     }
-                    onBlur={(e) =>
+                    onBlur={(e: React.FocusEvent<HTMLTextAreaElement>) =>
                       handleInputBlur('requirementDescription', e.target.value)
                     }
                     className="input h-24"
@@ -438,7 +439,7 @@ const LeadDetail: React.FC = () => {
                     Preferred Location
                   </label>
                   <TagInput
-                    options={tagOptions.preferredLocation}
+                    options={options.preferredLocation}
                     value={editedLead.preferredLocation ?? []}
                     onChange={(value) =>
                       handleImmediateChange('preferredLocation', value)
@@ -453,7 +454,7 @@ const LeadDetail: React.FC = () => {
                       Preferred Size
                     </label>
                     <TagInput
-                      options={tagOptions.preferredSize}
+                      options={options.preferredSize}
                       value={editedLead.preferredSize ?? []}
                       onChange={(value) =>
                         handleImmediateChange('preferredSize', value)
@@ -491,10 +492,10 @@ const LeadDetail: React.FC = () => {
                     <input
                       type="text"
                       value={editedLead.name}
-                      onChange={(e) =>
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                         handleInputChange('name', e.target.value)
                       }
-                      onBlur={(e) => handleInputBlur('name', e.target.value)}
+                      onBlur={(e: React.FocusEvent<HTMLInputElement>) => handleInputBlur('name', e.target.value)}
                       className="input"
                     />
                   </div>
@@ -506,10 +507,10 @@ const LeadDetail: React.FC = () => {
                     <input
                       type="tel"
                       value={editedLead.phone}
-                      onChange={(e) =>
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                         handleInputChange('phone', e.target.value)
                       }
-                      onBlur={(e) => handleInputBlur('phone', e.target.value)}
+                      onBlur={(e: React.FocusEvent<HTMLInputElement>) => handleInputBlur('phone', e.target.value)}
                       className="input"
                     />
                   </div>
@@ -521,10 +522,10 @@ const LeadDetail: React.FC = () => {
                     <input
                       type="text"
                       value={editedLead.alternatePhone || ''}
-                      onChange={(e) =>
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                         handleInputChange('alternatePhone', e.target.value)
                       }
-                      onBlur={(e) =>
+                      onBlur={(e: React.FocusEvent<HTMLInputElement>) =>
                         handleInputBlur('alternatePhone', e.target.value)
                       }
                       className="input"
@@ -538,10 +539,10 @@ const LeadDetail: React.FC = () => {
                     <input
                       type="text"
                       value={editedLead.address || ''}
-                      onChange={(e) =>
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                         handleInputChange('address', e.target.value)
                       }
-                      onBlur={(e) => handleInputBlur('address', e.target.value)}
+                      onBlur={(e: React.FocusEvent<HTMLInputElement>) => handleInputBlur('address', e.target.value)}
                       className="input"
                     />
                   </div>
@@ -553,10 +554,10 @@ const LeadDetail: React.FC = () => {
                     <input
                       type="text"
                       value={editedLead.about || ''}
-                      onChange={(e) =>
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                         handleInputChange('about', e.target.value)
                       }
-                      onBlur={(e) => handleInputBlur('about', e.target.value)}
+                      onBlur={(e: React.FocusEvent<HTMLInputElement>) => handleInputBlur('about', e.target.value)}
                       className="input"
                     />
                   </div>
@@ -630,7 +631,7 @@ const LeadDetail: React.FC = () => {
                     Tags
                   </label>
                   <TagInput
-                    options={tagOptions.tags}
+                    options={options.tags}
                     value={editedLead.tags ?? []}
                     onChange={(value) => handleImmediateChange('tags', value)}
                     placeholder="Add tags"
@@ -684,7 +685,7 @@ const LeadDetail: React.FC = () => {
                     Assigned To
                   </label>
                   <TagInput
-                    options={tagOptions.assignedTo}
+                    options={options.assignedTo}
                     value={editedLead.assignedTo ?? []}
                     onChange={(value) =>
                       handleImmediateChange('assignedTo', value)
@@ -700,10 +701,10 @@ const LeadDetail: React.FC = () => {
                   <input
                     type="text"
                     value={editedLead.listName || ''}
-                    onChange={(e) =>
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                       handleInputChange('listName', e.target.value)
                     }
-                    onBlur={(e) => handleInputBlur('listName', e.target.value)}
+                    onBlur={(e: React.FocusEvent<HTMLInputElement>) => handleInputBlur('listName', e.target.value)}
                     className="input"
                     placeholder="Enter list name"
                   />
@@ -723,8 +724,8 @@ const LeadDetail: React.FC = () => {
                   <input
                     type="text"
                     value={editedLead.data1 || ''}
-                    onChange={(e) => handleInputChange('data1', e.target.value)}
-                    onBlur={(e) => handleInputBlur('data1', e.target.value)}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange('data1', e.target.value)}
+                    onBlur={(e: React.FocusEvent<HTMLInputElement>) => handleInputBlur('data1', e.target.value)}
                     className="input"
                   />
                 </div>
@@ -736,8 +737,8 @@ const LeadDetail: React.FC = () => {
                   <input
                     type="text"
                     value={editedLead.data2 || ''}
-                    onChange={(e) => handleInputChange('data2', e.target.value)}
-                    onBlur={(e) => handleInputBlur('data2', e.target.value)}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange('data2', e.target.value)}
+                    onBlur={(e: React.FocusEvent<HTMLInputElement>) => handleInputBlur('data2', e.target.value)}
                     className="input"
                   />
                 </div>
@@ -749,8 +750,8 @@ const LeadDetail: React.FC = () => {
                   <input
                     type="text"
                     value={editedLead.data3 || ''}
-                    onChange={(e) => handleInputChange('data3', e.target.value)}
-                    onBlur={(e) => handleInputBlur('data3', e.target.value)}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange('data3', e.target.value)}
+                    onBlur={(e: React.FocusEvent<HTMLInputElement>) => handleInputBlur('data3', e.target.value)}
                     className="input"
                   />
                 </div>
@@ -760,7 +761,7 @@ const LeadDetail: React.FC = () => {
                     type="checkbox"
                     id="contactSyncDetail"
                     checked={editedLead.data3 === '1'}
-                    onChange={(e) => handleImmediateChange('data3', e.target.checked ? '1' : '')}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleImmediateChange('data3', e.target.checked ? '1' : '')}
                     className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
                   />
                   <label htmlFor="contactSyncDetail" className="text-sm font-medium text-gray-700">

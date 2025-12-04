@@ -5,7 +5,7 @@ import { useAppContext } from '../../contexts/AppContext';
 import { Todo } from '../../types';
 import { format } from 'date-fns';
 import Badge from '../ui/Badge';
-import { dropdownOptions, tagOptions } from '../../data/options';
+import { dropdownOptions } from '../../data/options';
 import Dropdown from '../common/Dropdown';
 import TagInput from '../common/TagInput';
 import QuickDateTimeInput from '../common/QuickDateTimeInput';
@@ -23,7 +23,7 @@ const TodoViewModal: React.FC<TodoViewModalProps> = ({
   onClose,
   todo,
 }) => {
-  const { getLeadById, updateTodo } = useAppContext();
+  const { getLeadById, updateTodo, options } = useAppContext();
   const navigate = useNavigate();
 
   const [editedTodo, setEditedTodo] = useState<Todo | null>(todo);
@@ -52,15 +52,15 @@ const TodoViewModal: React.FC<TodoViewModalProps> = ({
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
     const { name, value } = e.target;
-    setEditedTodo((prev) => prev ? ({ ...prev, [name]: value }) : null);
+    setEditedTodo((prev: Todo | null) => prev ? ({ ...prev, [name]: value }) : null);
   };
 
   const handleDropdownChange = (name: string, value: string) => {
-    setEditedTodo((prev) => prev ? ({ ...prev, [name]: value }) : null);
+    setEditedTodo((prev: Todo | null) => prev ? ({ ...prev, [name]: value }) : null);
   };
 
   const handleTagChange = (name: string, value: string[]) => {
-    setEditedTodo((prev) => prev ? ({ ...prev, [name]: value }) : null);
+    setEditedTodo((prev: Todo | null) => prev ? ({ ...prev, [name]: value }) : null);
   };
 
   const handleDateChange = (value: string) => {
@@ -70,7 +70,7 @@ const TodoViewModal: React.FC<TodoViewModalProps> = ({
     currentDateTime.setFullYear(year);
     currentDateTime.setMonth(month - 1);
     currentDateTime.setDate(day);
-    setEditedTodo((prev) => prev ? ({
+    setEditedTodo((prev: Todo | null) => prev ? ({
       ...prev,
       dateTime: currentDateTime.toISOString(),
     }) : null);
@@ -82,7 +82,7 @@ const TodoViewModal: React.FC<TodoViewModalProps> = ({
     const [hours, minutes] = value.split(':').map(Number);
     currentDateTime.setHours(hours);
     currentDateTime.setMinutes(minutes);
-    setEditedTodo((prev) => prev ? ({
+    setEditedTodo((prev: Todo | null) => prev ? ({
       ...prev,
       dateTime: currentDateTime.toISOString(),
     }) : null);
@@ -99,7 +99,7 @@ const TodoViewModal: React.FC<TodoViewModalProps> = ({
     newStatus: 'Completed' | 'Cancelled' | 'Pending'
   ) => {
     if (!editedTodo) return;
-    
+
     const updatedTodo = {
       ...editedTodo,
       status: newStatus,
@@ -121,25 +121,25 @@ const TodoViewModal: React.FC<TodoViewModalProps> = ({
       onClose={onClose}
       title={
         isEditing
-          ? 'Edit ' + '#'+ editedTodo.id
+          ? 'Edit ' + '#' + editedTodo.id
           : +editedTodo.id + ' - ' + editedTodo.type + ' Details'
       }
       size="lg"
     >
       <div className="space-y-4">
         <div>
-        <div className="items-center justify-between">
-  <div className="items-center space-x-2">
-    {isEditing ? (
-      <Dropdown
-        options={dropdownOptions.todoType}
-        value={editedTodo.type}
-        onChange={(value) => handleDropdownChange('type', value)}
-        placeholder="Select type"
-      />
-    ) : null}
-  </div>
-</div>
+          <div className="items-center justify-between">
+            <div className="items-center space-x-2">
+              {isEditing ? (
+                <Dropdown
+                  options={dropdownOptions.todoType}
+                  value={editedTodo.type}
+                  onChange={(value) => handleDropdownChange('type', value)}
+                  placeholder="Select type"
+                />
+              ) : null}
+            </div>
+          </div>
 
 
           {isEditing ? (
@@ -172,7 +172,7 @@ const TodoViewModal: React.FC<TodoViewModalProps> = ({
                 }}
               >
                 {editedTodo.leadId}. {lead?.name} &{' '}
-                {editedTodo.participants.map((participant, idx) => (
+                {editedTodo.participants.map((participant: string, idx: number) => (
                   <Badge key={idx} label={participant} color="gray" small />
                 ))}
               </button>
@@ -218,7 +218,7 @@ const TodoViewModal: React.FC<TodoViewModalProps> = ({
                 Participants
               </label>
               <TagInput
-                options={tagOptions.participants}
+                options={options.participants}
                 value={editedTodo.participants}
                 onChange={(value) => handleTagChange('participants', value)}
                 placeholder="Add participants"
@@ -269,7 +269,7 @@ const TodoViewModal: React.FC<TodoViewModalProps> = ({
                   <button
                     className="p-1.5 text-gray-600 hover:text-red-600 rounded-full hover:bg-red-50"
                     onClick={() => handleStatusChange('Cancelled')}
-                    title="Cancel"z
+                    title="Cancel" z
                   >
                     <XCircle size={18} />
                   </button>

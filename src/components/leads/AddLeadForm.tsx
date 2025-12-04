@@ -1,10 +1,11 @@
-import React, { useEffect } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import { useForm } from '../../hooks';
 import { Form, FormField, FormSection, FormActions } from '../ui';
-import { Lead } from '../../types';
+import { Lead, LeadStage, Purpose, Source, Priority } from '../../types';
 import TagInput from '../common/TagInput';
-import { tagOptions } from '../../data/options';
 import { dropdownOptions } from '../../data/options';
+import { useAppContext } from '../../contexts/AppContext';
 import Dropdown from '../common/Dropdown';
 import { formatPhoneNumber, getClipboardText, setClipboardText, isValidPhoneNumber } from '../../utils/phone';
 
@@ -23,7 +24,7 @@ interface AddLeadFormProps {
 const initialState: AddLeadFormData = {
   name: '',
   phone: '',
-  stage: 'Init - General Enquiry',
+  stage: 'Init - General Enquiry' as LeadStage,
   intent: 'Warm',
   budget: 0,
   preferredLocation: [],
@@ -32,11 +33,11 @@ const initialState: AddLeadFormData = {
   note: '',
   requirementDescription: '',
   propertyType: [],
-  purpose: '',
+  purpose: '' as Purpose,
   about: '',
   segment: 'Panipat',
-  source: 'Organic Social Media',
-  priority: '3',
+  source: 'Organic Social Media' as Source,
+  priority: 'General' as Priority,
   tags: [],
   assignedTo: [],
   data3: '1', // Default to sync contacts
@@ -51,6 +52,8 @@ const AddLeadForm: React.FC<AddLeadFormProps> = ({
     initialValues: { ...initialState, ...initialValues },
     onSubmit,
   });
+
+  const { options } = useAppContext();
 
   useEffect(() => {
     const checkClipboard = async () => {
@@ -77,7 +80,7 @@ const AddLeadForm: React.FC<AddLeadFormProps> = ({
 
   const handleBudgetBlur = (e: React.ChangeEvent<HTMLInputElement>) => {
     const budget = parseFloat(e.target.value);
-    
+
     // Auto-manage contact sync based on budget
     if (budget < 70 && values.data3 === '1') {
       // Auto-uncheck contact sync if budget is below 70
@@ -112,7 +115,7 @@ const AddLeadForm: React.FC<AddLeadFormProps> = ({
             <input
               type="text"
               value={values.name}
-              onChange={(e) => handleChange('name', e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleChange('name', e.target.value)}
               className="input"
               placeholder="Enter lead's name"
             />
@@ -134,7 +137,7 @@ const AddLeadForm: React.FC<AddLeadFormProps> = ({
             <Dropdown
               options={dropdownOptions.segment}
               value={values.segment}
-              onChange={(value) => handleChange('segment', value)}
+              onChange={(value: Lead['segment']) => handleChange('segment', value)}
               placeholder="Select segment"
             />
           </FormField>
@@ -143,16 +146,16 @@ const AddLeadForm: React.FC<AddLeadFormProps> = ({
             <Dropdown
               options={dropdownOptions.source}
               value={values.source}
-              onChange={(value) => handleChange('source', value)}
+              onChange={(value: Source) => handleChange('source', value as Source)}
               placeholder="Select source"
             />
           </FormField>
 
           <FormField label="Tags">
             <TagInput
-              options={tagOptions.tags}
+              options={options.tags}
               value={values.tags ?? []}
-              onChange={(value) => handleChange('tags', value)}
+              onChange={(value: string[]) => handleChange('tags', value)}
               placeholder="Add tags"
             />
           </FormField>
@@ -161,12 +164,12 @@ const AddLeadForm: React.FC<AddLeadFormProps> = ({
             <input
               type="text"
               value={values.address}
-              onChange={(e) => handleChange('address', e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleChange('address', e.target.value)}
               className="input"
               placeholder="Enter lead's address (optional)"
             />
           </FormField>
-          
+
           <FormField label="Note">
             <textarea
               value={values.note}

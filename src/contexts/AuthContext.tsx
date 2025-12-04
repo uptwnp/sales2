@@ -15,7 +15,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const VERIFICATION_API_URL = 'https://prop.digiheadway.in/api/2fa/';
 const SESSION_COOKIE_NAME = 'sales_auth_session';
-const SESSION_DURATION = 3 * 24 * 60 * 60 * 1000; // 3 days in milliseconds
+const SESSION_DURATION = 5 * 24 * 60 * 60 * 1000; // 3 days in milliseconds
 
 // Cookie utility functions
 const setCookie = (name: string, value: string, days: number) => {
