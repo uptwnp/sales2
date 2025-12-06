@@ -143,3 +143,67 @@ export interface FilterOption {
   operator: string;
   value: string | number | string[];
 }
+
+export interface CallLog {
+  id: string;
+  phone: string;
+  note: string;
+  duration: string;
+  type: string;
+  recording_url: string;
+  created_ts: string;
+  updated_ts: string;
+  call_id: string;
+}
+
+export interface CallerMatch {
+  id: string;
+  phone: string;
+  custom_name: string | null;
+  caller_type: string | null;
+  note: string | null;
+  calls: string;
+  last_call: string;
+  last_call_type: string;
+  last_call_duration: string;
+  update_ts: string;
+  created_ts: string;
+  excluded: string;
+  last_sync: string;
+}
+
+export interface GovPropertyMatch {
+  id: string;
+  OwnerName: string;
+  Address1: string;
+  PID: string;
+  PIDNDC: string | null;
+  Unit: string;
+  PlotSize: string;
+  remark: string | null;
+}
+
+export interface V3PersonMatch {
+  id: string;
+  name: string;
+  phone: string;
+  note: string | null;
+  source: string;
+}
+
+export interface CallerDetailsResponse {
+  found_in: string;
+  name: string | null;
+  note: string | null;
+  about: string | null;
+  budget: string | null;
+  address: string | null;
+  task: string | null;
+  segment: string | null;
+  phone: string;
+  matches: {
+    callers: CallerMatch[];
+    gov_properties: GovPropertyMatch[];
+    v3_person: V3PersonMatch[];
+  };
+}

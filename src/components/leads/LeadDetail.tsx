@@ -25,6 +25,7 @@ import { format } from 'date-fns';
 import Dropdown from '../common/Dropdown';
 import TagInput from '../common/TagInput';
 import { getWhatsAppUrl } from '../../utils/phone';
+import CallHistory from './CallHistory';
 
 import { dropdownOptions } from '../../data/options';
 
@@ -333,6 +334,15 @@ const LeadDetail: React.FC = () => {
             </div>
           </div>
 
+          <div className="bg-white rounded-lg shadow">
+            {renderSectionHeader('Call History', 'callHistory')}
+            {!collapsedSections['callHistory'] && (
+              <div className="p-2 md:p-4 transition-all duration-300">
+                <CallHistory phone={editedLead.phone} />
+              </div>
+            )}
+          </div>
+
           {pendingTodos.length > 0 && (
             <div className="bg-white rounded-lg shadow">
               {renderSectionHeader('Pending Tasks', 'pending')}
@@ -631,6 +641,7 @@ const LeadDetail: React.FC = () => {
           )}
         </div>
 
+
         <div className="space-y-6">
           <div className="bg-white rounded-lg shadow">
             {renderSectionHeader('Lead Status', 'status')}
@@ -666,7 +677,7 @@ const LeadDetail: React.FC = () => {
                   </label>
                   <Dropdown
                     options={dropdownOptions.intent}
-                    value={editedLead.intent}
+                    value={editedLead.intent || ''}
                     onChange={(value) => handleImmediateChange('intent', value)}
                     placeholder="Select Intent"
                   />
